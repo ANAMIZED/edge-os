@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0B0E14">
+<meta name="description" content="EDGE OS — Autonomous Agentic Operating System for RWA Perpetual Futures Arbitrage. Single-file, offline, fail-closed build of github.com/ANAMIZED/edge-os (Apache-2.0).">
+<title>EDGE OS · v0.1.0 · RWA Perps Agentic Operating System</title>
+<style>
+/* EDGE OS — night desk / amber phosphor. Offline-only: system fonts. */
+:root{
+  --ink:#0B0E14; --deep:#080B10; --panel:#121826; --panel2:#0E1420;
+  --line:#22304A; --line2:#182338;
+  --amber:#FFB01F; --amber-soft:#FFCE6B; --amber-deep:#8A6210;
+  --up:#2DD4A7; --down:#FF5C6C; --violet:#9D8CFF; --violet-deep:#3A3170;
+  --text:#E9EEF7; --muted:#8B96AB; --faint:#5A6478;
+  --mono:ui-monospace,'SF Mono','Cascadia Mono','JetBrains Mono','Roboto Mono',Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --rail-h:52px; --dock-h:64px; --r:10px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  margin:0;background:var(--ink);color:var(--text);
+  font:15px/1.5 var(--mono);font-variant-numeric:tabular-nums;
+  overscroll-behavior:none;touch-action:manipulation;
+  -webkit-font-smoothing:antialiased;
+}
+body::after{ /* faint scanlines — the one texture, kept whisper-quiet */
+  content:"";position:fixed;inset:0;pointer-events:none;z-index:99;opacity:.05;
+  background:repeating-linear-gradient(0deg,transparent 0 2px,#000 2px 3px);
+}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit}
+::selection{background:var(--amber-deep);color:#fff}
+a{color:var(--amber-soft)}
+
+/* ---------- boot POST ---------- */
+#boot{position:fixed;inset:0;z-index:200;background:var(--deep);
+  display:flex;align-items:center;justify-content:center;transition:opacity .45s}
+#boot.done{opacity:0;pointer-events:none}
+#boot .post{width:min(560px,88vw);font-size:13px;line-height:1.9;color:var(--muted)}
+#boot .post .brand{color:var(--amber);font-size:22px;letter-spacing:.28em;margin-bottom:14px;
+  text-shadow:0 0 18px rgba(255,176,31,.45)}
+#boot .post .ok{color:var(--up)} #boot .post .warn{color:var(--amber)}
+#boot .skip{position:absolute;bottom:max(20px,env(safe-area-inset-bottom));left:0;right:0;
+  text-align:center;color:var(--faint);font-size:12px;letter-spacing:.12em}
+
+/* ---------- OS frame ---------- */
+#os{display:flex;flex-direction:column;height:100dvh}
+/* risk rail — the signature */
+#rail{
+  height:calc(var(--rail-h) + env(safe-area-inset-top));
+  padding:env(safe-area-inset-top) 12px 0 12px;
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+  background:linear-gradient(180deg,#101624,#0C111C);
+  border-bottom:1px solid var(--line2);position:relative;z-index:5;
+}
+#rail .brand{font-size:13px;letter-spacing:.24em;color:var(--amber);white-space:nowrap;
+  text-shadow:0 0 14px rgba(255,176,31,.35)}
+#rail .brand small{color:var(--faint);letter-spacing:.1em;margin-left:6px;font-size:10px}
+.lamp{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.14em;
+  color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:4px 9px;white-space:nowrap}
+.lamp i{width:7px;height:7px;border-radius:50%;background:var(--faint);box-shadow:none;flex:none}
+.lamp.on i{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.lamp.kill i{background:var(--down);box-shadow:0 0 8px var(--down)}
+.lamp.up i{background:var(--up);box-shadow:0 0 8px var(--up)}
+#rail .gov{margin-left:auto;display:flex;align-items:center;gap:8px}
+.govbar{position:relative;width:74px;height:16px;border:1px solid var(--amber-deep);border-radius:4px;
+  overflow:hidden;flex:none}
+.govbar span{position:absolute;top:0;bottom:0;background:linear-gradient(90deg,rgba(255,176,31,.15),rgba(255,176,31,.55))}
+.govbar b{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:9px;letter-spacing:.14em;color:var(--amber-soft);font-weight:600}
+#killBtn{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:10px;
+  letter-spacing:.14em;color:var(--muted)}
+#killBtn.killed{border-color:var(--down);color:var(--down);background:rgba(255,92,108,.08)}
+
+/* ---------- viewport ---------- */
+#view{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:16px 14px calc(var(--dock-h) + 26px + env(safe-area-inset-bottom));}
+.wrap{max-width:860px;margin:0 auto}
+.eyebrow{font-size:10px;letter-spacing:.26em;color:var(--faint);text-transform:uppercase;margin:0 0 4px}
+h1.app{font-size:24px;margin:0 0 4px;letter-spacing:.02em;font-weight:600}
+p.lede{margin:0 0 18px;color:var(--muted);font-family:var(--sans);font-size:13.5px;max-width:56ch}
+.card{background:var(--panel);border:1px solid var(--line2);border-radius:var(--r);
+  padding:14px;margin:0 0 12px}
+.card h3{margin:0 0 10px;font-size:11px;letter-spacing:.2em;color:var(--muted);font-weight:600;
+  text-transform:uppercase;display:flex;align-items:center;gap:8px}
+.card h3 .tag{margin-left:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:640px){.grid2{grid-template-columns:1fr}}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px dashed var(--line2);font-size:13px}
+.kv:last-child{border-bottom:0}
+.kv b{color:var(--text);font-weight:500}.kv span{color:var(--muted)}
+.big{font-size:30px;color:var(--amber);letter-spacing:.01em;text-shadow:0 0 22px rgba(255,176,31,.28)}
+.tag{font-size:9px;letter-spacing:.16em;border:1px solid var(--line);color:var(--muted);
+  border-radius:4px;padding:2px 6px;text-transform:uppercase;white-space:nowrap}
+.tag.gold{border-color:var(--amber-deep);color:var(--amber-soft)}
+.tag.green{border-color:rgba(45,212,167,.5);color:var(--up)}
+.tag.red{border-color:rgba(255,92,108,.5);color:var(--down)}
+.tag.violet{border-color:var(--violet-deep);color:var(--violet)}
+
+/* buttons */
+.btn{border:1px solid var(--amber-deep);color:var(--amber-soft);border-radius:8px;
+  padding:11px 16px;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  background:rgba(255,176,31,.06);min-height:44px}
+.btn:active{background:rgba(255,176,31,.16)}
+.btn.ghost{border-color:var(--line);color:var(--muted);background:transparent}
+.btn.violet{border-color:var(--violet-deep);color:var(--violet);background:rgba(157,140,255,.06)}
+.btn[disabled]{opacity:.4;pointer-events:none}
+.btnrow{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px;align-items:center}
+.switch{display:inline-flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.12em;
+  color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:9px 13px;min-height:44px}
+.switch i{width:26px;height:14px;border-radius:999px;background:var(--line);position:relative;transition:.15s;flex:none}
+.switch i::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;
+  background:var(--muted);transition:.15s}
+.switch.on{border-color:var(--amber-deep);color:var(--amber-soft)}
+.switch.on i{background:var(--amber-deep)}
+.switch.on i::after{left:14px;background:var(--amber)}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th{font-size:9px;letter-spacing:.18em;color:var(--faint);text-transform:uppercase;text-align:left;
+  padding:0 8px 7px 0;border-bottom:1px solid var(--line2);font-weight:600}
+td{padding:8px 8px 8px 0;border-bottom:1px solid var(--line2);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;padding-right:0}
+.pos{color:var(--up)}.neg{color:var(--down)}.gold{color:var(--amber-soft)}
+.tick-up{animation:tickU .8s}.tick-down{animation:tickD .8s}
+@keyframes tickU{0%{background:rgba(45,212,167,.22)}100%{background:transparent}}
+@keyframes tickD{0%{background:rgba(255,92,108,.22)}100%{background:transparent}}
+
+/* opportunity card */
+.opp{border:1px solid var(--amber-deep);background:linear-gradient(180deg,rgba(255,176,31,.05),transparent)}
+.legs{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:10px 0}
+.leg{border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px}
+.leg .side{font-size:9px;letter-spacing:.2em}
+.leg.long .side{color:var(--up)}.leg.short .side{color:var(--down)}
+.leg .venue{font-size:15px;margin:3px 0 2px;text-transform:capitalize}
+.leg .apr{color:var(--muted);font-size:11px}
+.vs{color:var(--faint);font-size:11px;letter-spacing:.2em}
+.waterfall{display:flex;height:14px;border-radius:4px;overflow:hidden;border:1px solid var(--line);margin:8px 0 4px}
+.waterfall i{display:block;height:100%}
+.wf-net{background:linear-gradient(90deg,#C98A12,var(--amber))}
+.wf-slip{background:rgba(255,92,108,.4)}
+.wf-cost{background:rgba(255,92,108,.7)}
+.wflegend{display:flex;gap:14px;font-size:10px;color:var(--muted);letter-spacing:.08em}
+.wflegend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+
+/* decision log / workflow timeline */
+.log{font-size:12px;line-height:1.7;max-height:300px;overflow:auto}
+.log .row{padding:7px 0;border-bottom:1px dashed var(--line2);display:flex;gap:10px}
+.log .row:last-child{border-bottom:0}
+.log .who{color:var(--amber-soft);flex:none;min-width:104px;font-size:11px;letter-spacing:.06em}
+.log .who.v{color:var(--violet)}
+.log .what{color:var(--muted)} .log .what b{color:var(--text);font-weight:500}
+.flowstep{opacity:0;transform:translateY(4px);animation:stepIn .35s forwards}
+@keyframes stepIn{to{opacity:1;transform:none}}
+
+/* terminal */
+#termOut{background:var(--deep);border:1px solid var(--line2);border-radius:var(--r);
+  padding:12px;height:min(52vh,440px);overflow-y:auto;font-size:12.5px;line-height:1.65;white-space:pre-wrap;word-break:break-word}
+#termOut .in{color:var(--amber-soft)} #termOut .err{color:var(--down)}
+.termbar{display:flex;gap:8px;margin-top:10px}
+#termIn{flex:1;background:var(--deep);border:1px solid var(--line);border-radius:8px;
+  padding:12px;font-size:16px;color:var(--text);min-height:44px;outline:none}
+#termIn:focus{border-color:var(--amber-deep)}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 0 2px;-webkit-overflow-scrolling:touch}
+.chips button{border:1px solid var(--line);border-radius:999px;padding:7px 12px;font-size:11px;
+  color:var(--muted);white-space:nowrap;flex:none;min-height:36px}
+
+/* verify */
+.vgroup{margin:0 0 10px}
+.vgroup h4{margin:12px 0 6px;font-size:10px;letter-spacing:.22em;color:var(--faint);text-transform:uppercase}
+.vrow{display:flex;gap:10px;align-items:flex-start;padding:7px 0;border-bottom:1px dashed var(--line2);font-size:12.5px}
+.vrow:last-child{border-bottom:0}
+.vrow .mark{flex:none;width:18px;text-align:center}
+.vrow.pass .mark{color:var(--up)} .vrow.fail .mark{color:var(--down)}
+.vrow .nm{color:var(--muted)} .vrow.fail .nm{color:var(--down)}
+#vsummary{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+#vbadge{font-size:26px;letter-spacing:.06em}
+#vbadge.pass{color:var(--up);text-shadow:0 0 20px rgba(45,212,167,.4)}
+#vbadge.fail{color:var(--down)}
+.meter{flex:1;height:8px;border:1px solid var(--line);border-radius:99px;overflow:hidden}
+.meter i{display:block;height:100%;background:linear-gradient(90deg,var(--amber-deep),var(--up));width:0;transition:width .2s}
+
+/* docs */
+.tabs{display:flex;gap:8px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px;-webkit-overflow-scrolling:touch}
+.tabs button{border:1px solid var(--line);border-radius:8px;padding:9px 13px;font-size:11px;
+  letter-spacing:.1em;color:var(--muted);white-space:nowrap;flex:none;min-height:40px}
+.tabs button.act{border-color:var(--amber-deep);color:var(--amber-soft);background:rgba(255,176,31,.06)}
+.doc{font-family:var(--sans);font-size:14px;line-height:1.65;color:#C7D0E0}
+.doc h2{font-family:var(--mono);font-size:16px;color:var(--text);margin:18px 0 8px;letter-spacing:.02em}
+.doc h2:first-child{margin-top:0}
+.doc h3{font-family:var(--mono);font-size:12px;color:var(--amber-soft);letter-spacing:.14em;
+  text-transform:uppercase;margin:16px 0 6px}
+.doc p{margin:0 0 10px}.doc ul,.doc ol{margin:0 0 10px;padding-left:20px}.doc li{margin:3px 0}
+.doc code,.doc pre{font-family:var(--mono);font-size:12px;background:var(--deep);
+  border:1px solid var(--line2);border-radius:6px}
+.doc code{padding:1px 5px}
+.doc pre{padding:12px;overflow-x:auto;line-height:1.6}
+.doc pre code{border:0;background:none;padding:0}
+.doc table{font-family:var(--mono);margin:0 0 12px}
+.prov{border:1px dashed var(--amber-deep);border-radius:8px;padding:10px 12px;font-size:12px;
+  color:var(--amber-soft);background:rgba(255,176,31,.04);margin:0 0 14px;font-family:var(--mono)}
+.prov.re{border-color:var(--violet-deep);color:var(--violet);background:rgba(157,140,255,.05)}
+
+/* sealed lab */
+.sealed{border:1px solid var(--violet-deep);background:linear-gradient(180deg,rgba(157,140,255,.05),transparent)}
+.splitbar{display:flex;height:12px;border-radius:4px;overflow:hidden;border:1px solid var(--violet-deep);margin:8px 0 4px}
+.splitbar .tr{background:rgba(157,140,255,.45)} .splitbar .ho{background:rgba(157,140,255,.15)}
+.belief{border:1px solid var(--violet-deep);border-radius:8px;padding:10px;margin:8px 0;font-size:12px}
+.belief .id{color:var(--violet);letter-spacing:.1em;font-size:10px}
+
+/* charts */
+canvas.spark{width:100%;height:76px;display:block}
+
+/* dock */
+#dock{position:fixed;left:0;right:0;bottom:0;z-index:10;
+  background:rgba(10,13,20,.92);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-top:1px solid var(--line2);
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+#dock nav{display:flex;gap:2px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+  scroll-snap-type:x proximity;max-width:860px;margin:0 auto}
+#dock nav::-webkit-scrollbar{display:none}
+#dock button{flex:1 0 62px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;gap:3px;
+  padding:6px 2px;border-radius:10px;color:var(--faint);min-height:48px}
+#dock button svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+#dock button span{font-size:8.5px;letter-spacing:.14em;text-transform:uppercase}
+#dock button.act{color:var(--amber);background:rgba(255,176,31,.08)}
+#dock button.act svg{filter:drop-shadow(0 0 6px rgba(255,176,31,.6))}
+#dock button.lab.act{color:var(--violet);background:rgba(157,140,255,.08)}
+
+.footnote{color:var(--faint);font-size:11px;font-family:var(--sans);margin-top:18px;line-height:1.6}
+:focus-visible{outline:2px solid var(--amber);outline-offset:2px;border-radius:6px}
+@media(max-width:479px){
+  #modeLamp{display:none}
+  #rail .brand{font-size:12px;letter-spacing:.18em}
+  .govbar{width:60px}
+}
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+  body::after{display:none}
+}
+@media(min-width:720px){
+  #view{padding-left:24px;padding-right:24px}
+  #dock button{flex:0 0 84px}
+  #dock nav{justify-content:center}
+}
+
+/* ---- knowledge constellation ---- */
+.wikicv{width:100%;height:340px;display:block;border:1px solid var(--line);border-radius:12px;
+  background:radial-gradient(900px 420px at 50% -10%,rgba(255,176,31,.06),transparent 60%),#0A0D13;
+  touch-action:none;-webkit-tap-highlight-color:transparent;cursor:grab}
+.wikicv:active{cursor:grabbing}
+.legend{display:flex;flex-wrap:wrap;gap:8px 14px;margin:10px 0 0;font-size:11px;color:var(--muted);font-family:var(--mono)}
+.legend b{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.wchips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 10px}
+.wchips button{font-family:var(--mono);font-size:11px;letter-spacing:.06em;padding:7px 11px;border-radius:999px;
+  border:1px solid var(--line);background:transparent;color:var(--muted);min-height:34px}
+.wchips button.on{border-color:var(--amber);color:var(--amber);background:rgba(255,176,31,.08)}
+.nodecard .nb{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.nodecard .nb button{font-family:var(--mono);font-size:11px;padding:7px 10px;border-radius:8px;
+  border:1px solid var(--line);background:transparent;color:#E8EEF9;min-height:34px}
+
+</style>
+</head>
+<body>
+<div id="boot" role="status" aria-label="Edge OS booting">
+  <div class="post"></div>
+  <div class="skip">TAP TO SKIP POST</div>
+</div>
+<div id="os"></div>
+<script>
+/* ============================================================================
+   EDGE OS — kernel (JavaScript port, v0.1.0)
+   Autonomous Agentic Operating System for RWA Perpetual Futures Arbitrage
+   Ported from github.com/ANAMIZED/edge-os (Apache-2.0). Offline / mock only.
+   Fail-closed by construction: every gate rejects unless explicitly satisfied.
+   ========================================================================== */
+'use strict';
+
+/* ------------------------------- enums ---------------------------------- */
+const Venue = Object.freeze({
+  LIGHTER: 'lighter', HYPERLIQUID: 'hyperliquid', BINANCE: 'binance',
+  OSTIUM: 'ostium', BYBIT: 'bybit', OKX: 'okx',
+});
+const VENUE_LIST = Object.freeze(Object.values(Venue));
+
+const AssetClass = Object.freeze({
+  COMMODITY: 'commodity', FX: 'fx', INDEX: 'index', CRYPTO: 'crypto',
+});
+
+/* Weekend-exposed asset classes: underlying RWA markets close, oracles can
+   go stale while perps keep trading -> weekend gap risk (research-aligned). */
+const WEEKEND_EXPOSED = Object.freeze([AssetClass.COMMODITY, AssetClass.FX, AssetClass.INDEX]);
+
+/* Research-preferred venue pairings (AGENTS.md rule 4): Lighter + HL/Binance. */
+const PREFERRED_PAIRS = Object.freeze([
+  [Venue.LIGHTER, Venue.HYPERLIQUID],
+  [Venue.LIGHTER, Venue.BINANCE],
+]);
+
+/* ---------------------------- tiny validators --------------------------- */
+function req(cond, msg) { if (!cond) throw new Error('ValidationError: ' + msg); }
+function isNum(x) { return typeof x === 'number' && Number.isFinite(x); }
+function clamp(x, lo, hi) { return Math.min(hi, Math.max(lo, x)); }
+function round1(x) { return Math.round(x * 10) / 10; }
+
+/* Deterministic PRNG (mulberry32) — the mock path must stay deterministic. */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* -------------------------------- models -------------------------------- */
+/* Field names mirror src/edge_os/models.py as exercised by cli.py verbatim. */
+
+function NormalizedMarket(f) {
+  req(f && typeof f === 'object', 'NormalizedMarket requires fields');
+  req(VENUE_LIST.includes(f.venue), 'venue must be a known Venue');
+  req(typeof f.symbol === 'string' && f.symbol.length > 0, 'symbol required');
+  req(typeof f.base_asset === 'string' && f.base_asset.length > 0, 'base_asset required');
+  req(Object.values(AssetClass).includes(f.asset_class), 'asset_class must be a known AssetClass');
+  req(isNum(f.mark_price) && f.mark_price > 0, 'mark_price must be > 0');
+  req(isNum(f.funding_rate), 'funding_rate must be a number');
+  req(isNum(f.funding_interval_hours) && f.funding_interval_hours > 0, 'funding_interval_hours must be > 0');
+  req(isNum(f.funding_apr), 'funding_apr must be a number');
+  req(isNum(f.open_interest) && f.open_interest >= 0, 'open_interest must be >= 0');
+  req(isNum(f.max_leverage) && f.max_leverage > 0, 'max_leverage must be > 0');
+  return Object.freeze({
+    venue: f.venue, symbol: f.symbol, base_asset: f.base_asset, asset_class: f.asset_class,
+    mark_price: f.mark_price, funding_rate: f.funding_rate,
+    funding_interval_hours: f.funding_interval_hours, funding_apr: f.funding_apr,
+    open_interest: f.open_interest, max_leverage: f.max_leverage,
+    oracle_fresh: f.oracle_fresh !== false, // oracle gate input; defaults fresh
+  });
+}
+
+function FundingOpportunity(f) {
+  const need = ['asset', 'long_venue', 'short_venue', 'long_funding_apr', 'short_funding_apr',
+    'gross_spread_apr', 'estimated_net_apr', 'long_oi', 'short_oi',
+    'liquidity_score', 'risk_score', 'recommended_leverage'];
+  for (const k of need) req(f && f[k] !== undefined, 'FundingOpportunity missing ' + k);
+  req(VENUE_LIST.includes(f.long_venue) && VENUE_LIST.includes(f.short_venue), 'venues must be known');
+  req(f.long_venue !== f.short_venue, 'long and short venue must differ');
+  return Object.freeze({ ...f,
+    preferred_pairing: isPreferredPair(f.long_venue, f.short_venue),
+  });
+}
+
+function isPreferredPair(a, b) {
+  return PREFERRED_PAIRS.some(([x, y]) => (a === x && b === y) || (a === y && b === x));
+}
+
+/* Research-aligned risk limits (AGENTS.md hard rules). HARD caps are frozen:
+   even reconfiguration cannot exceed them — the guardian fails closed. */
+const HARD = Object.freeze({
+  LEVERAGE_MAX: 5.0,        // "leverage 2-5x max"
+  LEVERAGE_MIN: 2.0,
+  MIN_NOTIONAL: 1000,       // dust guard: below this, reject rather than fill
+});
+
+function RiskLimits(overrides) {
+  const d = {
+    max_leverage: 5.0,
+    min_leverage: 2.0,
+    max_position_notional: 100000,   // per delta-neutral pair, USD
+    max_total_notional: 250000,
+    max_venue_exposure: 150000,
+    min_net_apr: 0.05,               // 5% net APR floor
+    min_liquidity_score: 0.5,
+    max_risk_score: 0.6,
+    max_drawdown_pct: 0.10,          // kill at -10%
+    weekend_size_multiplier: 0.5,    // weekend gap buffer for RWA legs
+    dual_leg_margin_buffer: 1.25,    // +25% margin buffer on BOTH legs
+    max_oi_fraction: 0.01,           // <=1% of the thinner leg's OI
+    require_fresh_oracle: true,      // oracle gate
+  };
+  const L = { ...d, ...(overrides || {}) };
+  // Fail closed: clamp any attempt to loosen the hard caps.
+  L.max_leverage = clamp(L.max_leverage, HARD.LEVERAGE_MIN, HARD.LEVERAGE_MAX);
+  L.min_leverage = clamp(L.min_leverage, HARD.LEVERAGE_MIN, L.max_leverage);
+  return Object.freeze(L);
+}
+
+function PortfolioState(f) {
+  const p = {
+    capital: 50000, total_notional: 0, drawdown_pct: 0,
+    kill_switch: false, venue_notional: {}, open_positions: [],
+    ...(f || {}),
+  };
+  req(isNum(p.capital) && p.capital > 0, 'capital must be > 0');
+  return p; // mutable by design: the kernel owns portfolio state
+}
+
+/* --------------------------- funding detector --------------------------- */
+/* FundingScanner/FundingSpreadDetector: group markets by base asset, pair
+   venues, long the low-funding leg, short the high-funding leg. */
+
+const DETECTOR_DEFAULTS = Object.freeze({
+  min_gross_spread_apr: 0.05,  // ignore noise below 5% APR gross
+  slippage_haircut: 0.10,      // 10% of gross lost to entry/exit slippage
+  fixed_cost_apr: 0.02,        // fees + borrow drag, annualized
+});
+
+class FundingSpreadDetector {
+  constructor(cfg) { this.cfg = { ...DETECTOR_DEFAULTS, ...(cfg || {}) }; }
+
+  detect(markets) {
+    req(Array.isArray(markets), 'detect(markets) requires an array');
+    const byAsset = new Map();
+    for (const m of markets.map(NormalizedMarket)) {
+      if (!byAsset.has(m.base_asset)) byAsset.set(m.base_asset, []);
+      byAsset.get(m.base_asset).push(m);
+    }
+    const opps = [];
+    for (const [asset, ms] of byAsset) {
+      for (let i = 0; i < ms.length; i++) for (let j = i + 1; j < ms.length; j++) {
+        const a = ms[i], b = ms[j];
+        if (a.venue === b.venue) continue;
+        const long = a.funding_apr <= b.funding_apr ? a : b;   // pay less
+        const short = a.funding_apr <= b.funding_apr ? b : a;  // receive more
+        const gross = short.funding_apr - long.funding_apr;
+        if (gross < this.cfg.min_gross_spread_apr) continue;
+        if (long.open_interest <= 0 || short.open_interest <= 0) continue;
+        const net = gross * (1 - this.cfg.slippage_haircut) - this.cfg.fixed_cost_apr;
+        if (net <= 0) continue;
+        const minOi = Math.min(long.open_interest, short.open_interest);
+        const liquidity = clamp(Math.log10(Math.max(minOi, 1)) / 8, 0, 1);
+        const weekendExposed = WEEKEND_EXPOSED.includes(long.asset_class);
+        const risk = clamp(0.15 + (weekendExposed ? 0.15 : 0) + (gross > 0.8 ? 0.10 : 0), 0, 1);
+        const recLev = round1(clamp(2 + 3 * liquidity * (1 - risk), HARD.LEVERAGE_MIN, HARD.LEVERAGE_MAX));
+        opps.push(FundingOpportunity({
+          asset, long_venue: long.venue, short_venue: short.venue,
+          long_funding_apr: long.funding_apr, short_funding_apr: short.funding_apr,
+          gross_spread_apr: gross, estimated_net_apr: net,
+          long_oi: long.open_interest, short_oi: short.open_interest,
+          liquidity_score: Math.round(liquidity * 1000) / 1000,
+          risk_score: Math.round(risk * 1000) / 1000,
+          recommended_leverage: recLev,
+          long_symbol: long.symbol, short_symbol: short.symbol,
+          long_mark: long.mark_price, short_mark: short.mark_price,
+          weekend_exposed: weekendExposed,
+          oracle_fresh: long.oracle_fresh && short.oracle_fresh,
+        }));
+      }
+    }
+    // Rank: research-preferred pairings first, then by net APR.
+    opps.sort((x, y) => (Number(y.preferred_pairing) - Number(x.preferred_pairing)) ||
+                        (y.estimated_net_apr - x.estimated_net_apr));
+    return opps;
+  }
+}
+const FundingScanner = FundingSpreadDetector; // alias kept per AGENTS.md surfaces
+
+/* ------------------------------ risk guardian --------------------------- */
+class RiskGuardian {
+  constructor(limits) { this.limits = limits || RiskLimits(); this.decisions = []; }
+
+  /* Returns { approved: ApprovedTrade|null, reasons: string[] }.
+     Any failed gate rejects — never "partially approve" past a hard gate. */
+  evaluate(opp, portfolio, ctx) {
+    const L = this.limits;
+    const P = portfolio || PortfolioState();
+    const C = { weekend: false, ...(ctx || {}) };
+    const reasons = [];
+    const gate = (ok, code) => { if (!ok) reasons.push(code); return ok; };
+
+    gate(!P.kill_switch, 'KILL_SWITCH_ENGAGED');
+    gate(P.drawdown_pct < L.max_drawdown_pct, 'MAX_DRAWDOWN_BREACHED');
+    if (L.require_fresh_oracle) gate(opp.oracle_fresh !== false, 'ORACLE_STALE');
+    gate(opp.estimated_net_apr >= L.min_net_apr, 'NET_APR_BELOW_FLOOR');
+    gate(opp.liquidity_score >= L.min_liquidity_score, 'LIQUIDITY_BELOW_FLOOR');
+    gate(opp.risk_score <= L.max_risk_score, 'RISK_SCORE_ABOVE_CEILING');
+
+    let approved = null;
+    if (reasons.length === 0) {
+      const lev = clamp(opp.recommended_leverage, L.min_leverage, L.max_leverage);
+      let notional = Math.min(L.max_position_notional, P.capital * lev);
+      notional = Math.min(notional, L.max_oi_fraction * Math.min(opp.long_oi, opp.short_oi));
+      notional = Math.min(notional, Math.max(0, L.max_total_notional - P.total_notional));
+      const venueRoom = (v) => Math.max(0, L.max_venue_exposure - (P.venue_notional[v] || 0));
+      notional = Math.min(notional, venueRoom(opp.long_venue), venueRoom(opp.short_venue));
+      // Dual-leg margin with buffer must fit in capital; scale down, else reject.
+      const marginPerNotional = (2 / lev) * L.dual_leg_margin_buffer;
+      const maxByMargin = P.capital / marginPerNotional;
+      notional = Math.min(notional, maxByMargin);
+      // Weekend gap buffer applies LAST so it always halves the final size.
+      if (C.weekend) notional *= L.weekend_size_multiplier;
+      notional = Math.floor(notional);
+      if (gate(notional >= HARD.MIN_NOTIONAL, 'NOTIONAL_BELOW_MINIMUM')) {
+        approved = Object.freeze({
+          asset: opp.asset, long_venue: opp.long_venue, short_venue: opp.short_venue,
+          approved_notional: notional, approved_leverage: lev,
+          required_margin: Math.ceil(notional * marginPerNotional),
+          expected_net_apr: opp.estimated_net_apr,
+          weekend_buffer_applied: !!C.weekend, mode: 'DRY_RUN',
+        });
+      }
+
+    }
+    const record = Object.freeze({
+      t: Date.now(), asset: opp.asset, pair: opp.long_venue + '/' + opp.short_venue,
+      approved: !!approved, reasons: reasons.slice(),
+      notional: approved ? approved.approved_notional : 0,
+      leverage: approved ? approved.approved_leverage : 0,
+    });
+    this.decisions.push(record);
+    return { approved, reasons, record };
+  }
+}
+
+/* ----------------------------- dry-run executor -------------------------- */
+class DryRunExecutor {
+  constructor() { this.fills = []; }
+  execute(trade, marks) {
+    req(trade && trade.mode === 'DRY_RUN', 'executor only accepts DRY_RUN approved trades');
+    const mk = marks || {};
+    const px = (v) => (isNum(mk[v]) ? mk[v] : 100);
+    const SLIP = 0.0005; // 5 bps simulated slippage, adverse on both legs
+    const legs = [
+      { venue: trade.long_venue, side: 'long', notional: trade.approved_notional,
+        price: px(trade.long_venue) * (1 + SLIP), qty: trade.approved_notional / px(trade.long_venue) },
+      { venue: trade.short_venue, side: 'short', notional: trade.approved_notional,
+        price: px(trade.short_venue) * (1 - SLIP), qty: trade.approved_notional / px(trade.short_venue) },
+    ];
+    const report = Object.freeze({
+      status: 'FILLED_DRY_RUN', asset: trade.asset, legs,
+      approved_leverage: trade.approved_leverage,
+      required_margin: trade.required_margin,
+      est_daily_funding_usd: Math.round(trade.approved_notional * trade.expected_net_apr / 365 * 100) / 100,
+      t: Date.now(),
+    });
+    this.fills.push(report);
+    return report;
+  }
+}
+
+/* ------------------------ research: sealed sandbox ----------------------- */
+/* AQuA-inspired asymmetry (AGENTS.md rule 7): research agents run against
+   FIXED, seeded data splits and a sealed evaluator. They may write validated
+   beliefs to BeliefStore but hold NO authority over capital, limits, or
+   execution. The live path reads beliefs only via consult_beliefs=true. */
+
+class BeliefStore {
+  constructor() { this._beliefs = []; this.sealed = true; }
+  add(b) {
+    const belief = Object.freeze({
+      id: 'blf_' + (this._beliefs.length + 1).toString().padStart(3, '0'),
+      hypothesis: String(b.hypothesis), param: b.param, value: b.value,
+      train_score: b.train_score, holdout_score: b.holdout_score,
+      confidence: b.confidence, validated: !!b.validated, t: b.t || 0,
+    });
+    this._beliefs.push(belief);
+    return belief;
+  }
+  list() { return this._beliefs.slice(); }
+  validated() { return this._beliefs.filter((b) => b.validated); }
+}
+
+class SealedEvaluator {
+  constructor(seed) {
+    this.seed = seed === undefined ? 42 : seed;
+    const rnd = mulberry32(this.seed);
+    // Fixed synthetic gross-spread APR series: mean-reverting around 0.30.
+    const series = []; let x = 0.30;
+    for (let i = 0; i < 240; i++) {
+      x = clamp(x + 0.9 * (0.30 - x) * 0.1 + (rnd() - 0.5) * 0.12, 0, 1.6);
+      series.push(x);
+    }
+    this.splits = Object.freeze({ train: series.slice(0, 160), holdout: series.slice(160) });
+  }
+  /* Score an entry-threshold hypothesis: capture (spread - costs) while in. */
+  score(thresholdApr, split) {
+    const s = this.splits[split]; req(s, 'unknown split ' + split);
+    const COST = 0.05; let pnl = 0, n = 0;
+    for (const spread of s) if (spread >= thresholdApr) { pnl += spread - COST; n++; }
+    if (n === 0) return 0;
+    return Math.round((pnl / s.length) * 1000) / 1000; // avg captured APR per bar
+  }
+}
+
+class ResearchLoop {
+  constructor(store, evaluator) {
+    this.store = store || new BeliefStore();
+    this.evaluator = evaluator || new SealedEvaluator(42);
+  }
+  run(iterations) {
+    const iters = iterations || 8;
+    const candidates = [];
+    for (let i = 0; i < iters; i++) candidates.push(0.05 + i * (0.45 / Math.max(1, iters - 1)));
+    const baseline = this.evaluator.score(DETECTOR_DEFAULTS.min_gross_spread_apr, 'holdout');
+    const log = []; let best = null;
+    for (const c of candidates) {
+      const tr = this.evaluator.score(c, 'train');
+      const ho = this.evaluator.score(c, 'holdout');
+      log.push({ candidate: Math.round(c * 1000) / 1000, train: tr, holdout: ho });
+      if (!best || tr > best.train) best = { candidate: c, train: tr, holdout: ho };
+    }
+    let belief = null;
+    if (best && best.holdout >= baseline) {
+      belief = this.store.add({
+        hypothesis: 'Entry threshold ' + best.candidate.toFixed(3) +
+          ' APR captures more spread than default on sealed holdout',
+        param: 'min_gross_spread_apr', value: Math.round(best.candidate * 1000) / 1000,
+        train_score: best.train, holdout_score: best.holdout,
+        confidence: Math.round(clamp(best.holdout / Math.max(baseline, 0.001), 0, 3) * 100) / 100,
+        validated: true,
+      });
+    }
+    return { baseline, log, belief, sealed: true };
+  }
+}
+
+/* --------------------------- multi-agent workflow ------------------------ */
+function run_funding_arb_workflow(opts) {
+  const o = { consult_beliefs: false, weekend: false, ...(opts || {}) };
+  const steps = [];
+  const step = (agent, action, detail) => steps.push({ agent, action, detail });
+
+  const markets = (o.markets && o.markets.length ? o.markets : mockMarkets()).map(NormalizedMarket);
+  step('MarketAgent', 'discover+normalize', markets.length + ' markets across ' +
+    new Set(markets.map((m) => m.venue)).size + ' venues (mock feed, offline)');
+
+  const detector = new FundingSpreadDetector(o.detector_cfg);
+  if (o.consult_beliefs) {
+    const store = o.belief_store || null;
+    const validated = store ? store.validated() : [];
+    const thr = validated.find((b) => b.param === 'min_gross_spread_apr');
+    if (thr) {
+      detector.cfg.min_gross_spread_apr = thr.value;
+      step('BeliefAgent', 'consult (opt-in)', 'applied ' + thr.id + ': min_gross_spread_apr=' + thr.value);
+    } else {
+      step('BeliefAgent', 'consult (opt-in)', 'no validated beliefs available');
+    }
+  }
+  const opps = detector.detect(markets);
+  step('DetectorAgent', 'detect', opps.length + ' opportunity(ies) above ' +
+    detector.cfg.min_gross_spread_apr.toFixed(2) + ' gross APR threshold');
+
+  if (opps.length === 0) {
+    step('Reporter', 'summary', 'no trade: nothing above threshold (fail closed)');
+    return { steps, opportunities: [], decision: null, execution: null };
+  }
+  const guardian = o.guardian || new RiskGuardian(o.limits);
+  const portfolio = o.portfolio || PortfolioState();
+  const top = opps[0];
+  const decision = guardian.evaluate(top, portfolio, { weekend: o.weekend });
+  step('RiskGuardian', decision.approved ? 'approve' : 'reject',
+    decision.approved
+      ? 'notional=' + decision.approved.approved_notional + ' lev=' + decision.approved.approved_leverage.toFixed(1) +
+        (decision.approved.weekend_buffer_applied ? ' (weekend buffer x' + guardian.limits.weekend_size_multiplier + ')' : '')
+      : decision.reasons.join(', '));
+
+  let execution = null;
+  if (decision.approved) {
+    const marks = {}; marks[top.long_venue] = top.long_mark; marks[top.short_venue] = top.short_mark;
+    execution = new DryRunExecutor().execute(decision.approved, marks);
+    portfolio.total_notional += decision.approved.approved_notional;
+    portfolio.venue_notional[top.long_venue] = (portfolio.venue_notional[top.long_venue] || 0) + decision.approved.approved_notional;
+    portfolio.venue_notional[top.short_venue] = (portfolio.venue_notional[top.short_venue] || 0) + decision.approved.approved_notional;
+    step('ExecutionAgent', 'dry-run fill', execution.status + ' · 2 legs · ~$' +
+      execution.est_daily_funding_usd + '/day est. funding capture');
+  }
+  step('Reporter', 'summary', decision.approved
+    ? top.asset + ' long ' + top.long_venue + ' / short ' + top.short_venue + ' filled in dry-run'
+    : 'no trade: guardian rejected (' + decision.reasons.join(', ') + ')');
+  return { steps, opportunities: opps, decision, execution };
+}
+
+/* ------------------------------ mock markets ----------------------------- */
+/* Exactly the offline demo markets from cli.py `scan --mock`. */
+function mockMarkets() {
+  return [
+    { venue: Venue.LIGHTER, symbol: 'XAU-USDC', base_asset: 'XAU', asset_class: AssetClass.COMMODITY,
+      mark_price: 2400.0, funding_rate: 0.00005, funding_interval_hours: 1.0, funding_apr: 0.438,
+      open_interest: 8e6, max_leverage: 15.0 },
+    { venue: Venue.HYPERLIQUID, symbol: 'XAU-USDC', base_asset: 'XAU', asset_class: AssetClass.COMMODITY,
+      mark_price: 2401.0, funding_rate: 0.0002, funding_interval_hours: 1.0, funding_apr: 1.752,
+      open_interest: 12e6, max_leverage: 20.0 },
+  ];
+}
+
+/* Extended offline board for the dashboard (still deterministic + offline). */
+function extendedMockMarkets() {
+  return mockMarkets().concat([
+    { venue: Venue.BINANCE, symbol: 'XAUUSDT', base_asset: 'XAU', asset_class: AssetClass.COMMODITY,
+      mark_price: 2399.5, funding_rate: 0.00012, funding_interval_hours: 8.0, funding_apr: 0.1314,
+      open_interest: 30e6, max_leverage: 50.0 },
+    { venue: Venue.OSTIUM, symbol: 'EURUSD-P', base_asset: 'EURUSD', asset_class: AssetClass.FX,
+      mark_price: 1.0925, funding_rate: 0.00002, funding_interval_hours: 1.0, funding_apr: 0.1752,
+      open_interest: 4e6, max_leverage: 100.0 },
+    { venue: Venue.HYPERLIQUID, symbol: 'EUR-USDC', base_asset: 'EURUSD', asset_class: AssetClass.FX,
+      mark_price: 1.0927, funding_rate: 0.00009, funding_interval_hours: 1.0, funding_apr: 0.7884,
+      open_interest: 6e6, max_leverage: 20.0 },
+    { venue: Venue.BYBIT, symbol: 'SPX-PERP', base_asset: 'SPX', asset_class: AssetClass.INDEX,
+      mark_price: 5620.0, funding_rate: 0.00004, funding_interval_hours: 8.0, funding_apr: 0.0438,
+      open_interest: 9e6, max_leverage: 25.0 },
+    { venue: Venue.OKX, symbol: 'SPX-USDT', base_asset: 'SPX', asset_class: AssetClass.INDEX,
+      mark_price: 5621.5, funding_rate: 0.00021, funding_interval_hours: 8.0, funding_apr: 0.22995,
+      open_interest: 7e6, max_leverage: 20.0 },
+  ]);
+}
+
+/* ---------------------------------- SDK ---------------------------------- */
+class EdgeOSClient {
+  constructor(opts) {
+    const o = opts || {};
+    this.limits = o.limits || RiskLimits();
+    this.guardian = o.guardian || new RiskGuardian(this.limits);
+    this.detector = o.detector || new FundingSpreadDetector();
+    this.portfolio = o.portfolio || PortfolioState();
+    this.belief_store = o.belief_store || new BeliefStore();
+    this.research = new ResearchLoop(this.belief_store, new SealedEvaluator(42));
+    this.executor = new DryRunExecutor();
+  }
+  health() {
+    return { status: 'ok', name: 'edge-os', version: '0.1.0', mode: 'mock',
+      surfaces: ['kernel', 'sdk', 'cli', 'mcp', 'workflows', 'research', 'skills'] };
+  }
+  detect_opportunities(markets) { return this.detector.detect(markets); }
+  evaluate_risk(opp, ctx) { return this.guardian.evaluate(opp, this.portfolio, ctx).approved; }
+  run_workflow(opts) {
+    return run_funding_arb_workflow({
+      guardian: this.guardian, portfolio: this.portfolio,
+      belief_store: this.belief_store, ...(opts || {}),
+    });
+  }
+  run_research(iterations) { return this.research.run(iterations); }
+}
+
+/* ------------------------------- MCP server ------------------------------ */
+/* Simulated MCP surface: tools/list + tools/call with JSON-RPC 2.0 shapes.
+   Includes the edge_research_* tools required by AGENTS.md. */
+function createMcpServer(client) {
+  const c = client || new EdgeOSClient();
+  const text = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj, null, 2) }] });
+  const tools = [
+    { name: 'edge_status', description: 'Kernel health, version and active surfaces.',
+      inputSchema: { type: 'object', properties: {} },
+      run: () => text(c.health()) },
+    { name: 'edge_scan', description: 'Run the offline mock funding scan and return opportunities.',
+      inputSchema: { type: 'object', properties: { extended: { type: 'boolean' } } },
+      run: (a) => text(c.detect_opportunities((a && a.extended) ? extendedMockMarkets() : mockMarkets())) },
+    { name: 'edge_risk_check', description: 'Evaluate the reference XAU opportunity through RiskGuardian.',
+      inputSchema: { type: 'object', properties: {} },
+      run: () => { const r = c.guardian.evaluate(sampleOpportunity(), c.portfolio);
+        return text(r.approved ? { approved: r.approved } : { rejected: r.reasons }); } },
+    { name: 'edge_workflow_run', description: 'Run the multi-agent funding-arb workflow (mock, dry-run).',
+      inputSchema: { type: 'object', properties: { consult_beliefs: { type: 'boolean' }, weekend: { type: 'boolean' } } },
+      run: (a) => { const r = c.run_workflow(a || {});
+        return text({ steps: r.steps, approved: !!(r.decision && r.decision.approved) }); } },
+    { name: 'edge_research_run', description: 'Run the sealed research loop (fixed splits); writes validated beliefs.',
+      inputSchema: { type: 'object', properties: { iterations: { type: 'number' } } },
+      run: (a) => text(c.run_research(a && a.iterations)) },
+    { name: 'edge_research_beliefs', description: 'List beliefs in the BeliefStore (sealed sandbox output).',
+      inputSchema: { type: 'object', properties: {} },
+      run: () => text({ sealed: c.belief_store.sealed, beliefs: c.belief_store.list() }) },
+  ];
+  return {
+    client: c,
+    list: () => ({ jsonrpc: '2.0', result: { tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) } }),
+    call: (name, args) => {
+      const t = tools.find((x) => x.name === name);
+      if (!t) return { jsonrpc: '2.0', error: { code: -32601, message: 'Unknown tool: ' + name } };
+      try { return { jsonrpc: '2.0', result: t.run(args || {}) }; }
+      catch (e) { return { jsonrpc: '2.0', error: { code: -32000, message: String(e && e.message || e) } }; }
+    },
+  };
+}
+
+/* Reference opportunity from cli.py `risk-check` (verbatim values). */
+function sampleOpportunity() {
+  return FundingOpportunity({
+    asset: 'XAU', long_venue: Venue.LIGHTER, short_venue: Venue.HYPERLIQUID,
+    long_funding_apr: 0.05, short_funding_apr: 0.25, gross_spread_apr: 0.20,
+    estimated_net_apr: 0.15, long_oi: 5e6, short_oi: 5e6,
+    liquidity_score: 0.8, risk_score: 0.3, recommended_leverage: 3.0,
+  });
+}
+
+/* ------------------------------ CLI emulator ------------------------------ */
+/* Mirrors src/edge_os/cli.py: version / status / scan / risk-check, plus the
+   operator surfaces the OS exposes. Live mode is refused (fail closed). */
+function createCli(client, mcp) {
+  const c = client || new EdgeOSClient();
+  const m = mcp || createMcpServer(c);
+  const pct = (x) => (x * 100).toFixed(1) + '%';
+  const run = (line) => {
+    const out = [];
+    const argv = String(line || '').trim().split(/\s+/).filter(Boolean);
+    const cmd = (argv[0] || '').toLowerCase();
+    const has = (f) => argv.includes(f);
+    switch (cmd) {
+      case '': break;
+      case 'help':
+        out.push('edge-os — RWA Perps Agentic Operating System CLI',
+          '  version           print kernel version',
+          '  status            kernel health',
+          '  scan [--live]     funding opportunity scan (mock by default)',
+          '  risk-check        smoke-test RiskGuardian on the reference opp',
+          '  workflow [--consult-beliefs] [--weekend]',
+          '  research run [n]  sealed research loop (fixed splits)',
+          '  beliefs           list BeliefStore contents',
+          '  limits            show active RiskLimits',
+          '  portfolio         show PortfolioState',
+          '  kill on|off       engage / release the kill switch',
+          '  mcp tools|call <name>',
+          '  verify            run the verification suite',
+          '  clear             clear the terminal');
+        break;
+      case 'version': out.push('Edge OS 0.1.0'); break;
+      case 'status': out.push('OK ' + JSON.stringify(c.health())); break;
+      case 'scan': {
+        if (has('--live')) {
+          out.push('ERROR live mode is disabled in this build (fail closed).',
+            'Mock/offline is the verification path — AGENTS.md rules 3 & 5.');
+          break;
+        }
+        const opps = c.detect_opportunities(has('--extended') ? extendedMockMarkets() : mockMarkets());
+        if (!opps.length) { out.push('No opportunities above threshold.'); break; }
+        out.push('Funding Opportunities');
+        out.push('ASSET     LONG          SHORT         NET APR');
+        for (const o of opps) {
+          out.push((o.asset + '        ').slice(0, 10) + (o.long_venue + '            ').slice(0, 14) +
+            (o.short_venue + '            ').slice(0, 14) + pct(o.estimated_net_apr) +
+            (o.preferred_pairing ? '  *preferred pairing' : ''));
+        }
+        break;
+      }
+      case 'risk-check': {
+        const approved = c.evaluate_risk(sampleOpportunity());
+        out.push(approved
+          ? 'Approved notional=' + approved.approved_notional.toFixed(0) + ' lev=' + approved.approved_leverage.toFixed(1)
+          : 'Rejected');
+        break;
+      }
+      case 'workflow': {
+        const r = c.run_workflow({ consult_beliefs: has('--consult-beliefs'), weekend: has('--weekend') });
+        for (const s of r.steps) out.push('[' + s.agent + '] ' + s.action + ' — ' + s.detail);
+        break;
+      }
+      case 'research': {
+        if ((argv[1] || '') !== 'run') { out.push('usage: research run [iterations]'); break; }
+        const r = c.run_research(parseInt(argv[2], 10) || undefined);
+        out.push('sealed evaluator baseline (holdout): ' + r.baseline);
+        for (const l of r.log) out.push('  thr=' + l.candidate.toFixed(3) + '  train=' + l.train + '  holdout=' + l.holdout);
+        out.push(r.belief ? 'validated belief written: ' + r.belief.id + ' — ' + r.belief.hypothesis
+          : 'no belief beat the sealed baseline (nothing written)');
+        break;
+      }
+      case 'beliefs': {
+        const bs = c.belief_store.list();
+        out.push(bs.length ? bs.map((b) => b.id + '  ' + (b.validated ? 'VALIDATED' : 'unvalidated') +
+          '  ' + b.param + '=' + b.value + '  holdout=' + b.holdout_score).join('\n')
+          : 'BeliefStore is empty. Run: research run');
+        break;
+      }
+      case 'limits': out.push(JSON.stringify(c.limits, null, 2)); break;
+      case 'portfolio': out.push(JSON.stringify({
+        capital: c.portfolio.capital, total_notional: c.portfolio.total_notional,
+        drawdown_pct: c.portfolio.drawdown_pct, kill_switch: c.portfolio.kill_switch,
+        venue_notional: c.portfolio.venue_notional }, null, 2)); break;
+      case 'kill':
+        if (argv[1] === 'on') { c.portfolio.kill_switch = true; out.push('kill switch ENGAGED — guardian now rejects everything'); }
+        else if (argv[1] === 'off') { c.portfolio.kill_switch = false; out.push('kill switch released'); }
+        else out.push('usage: kill on|off');
+        break;
+      case 'mcp':
+        if (argv[1] === 'tools') {
+          for (const t of m.list().result.tools) out.push(t.name + ' — ' + t.description);
+        } else if (argv[1] === 'call' && argv[2]) {
+          const r = m.call(argv[2], {});
+          out.push(JSON.stringify(r, null, 2));
+        } else out.push('usage: mcp tools | mcp call <name>');
+        break;
+      default:
+        out.push('unknown command: ' + cmd + '  (try: help)');
+    }
+    return out.join('\n');
+  };
+  return { run, client: c, mcp: m };
+}
+
+/* -------------------------------- exports -------------------------------- */
+const EdgeOS = {
+  version: '0.1.0',
+  Venue, AssetClass, VENUE_LIST, WEEKEND_EXPOSED, PREFERRED_PAIRS, HARD,
+  NormalizedMarket, FundingOpportunity, RiskLimits, PortfolioState,
+  FundingSpreadDetector, FundingScanner, DETECTOR_DEFAULTS,
+  RiskGuardian, DryRunExecutor,
+  BeliefStore, SealedEvaluator, ResearchLoop,
+  run_funding_arb_workflow, mockMarkets, extendedMockMarkets,
+  EdgeOSClient, createMcpServer, createCli, sampleOpportunity,
+  isPreferredPair, mulberry32, clamp,
+};
+
+if (typeof module !== 'undefined' && module.exports) module.exports = EdgeOS;
+if (typeof globalThis !== 'undefined') globalThis.EdgeOS = EdgeOS;
+
+
+/* EDGE OS — Knowledge Constellation (pure module, DOM-free, node-testable).
+   A 3D force-directed wiki of the system's own contract. AUTONOMOUS = it
+   accretes nodes from live state (validated beliefs, guardian rulings).
+   READ-ONLY = it observes client state and never mutates it (verified). */
+'use strict';
+(function (root) {
+  const E = root.EdgeOS || (typeof require !== 'undefined' ? require('./kernel.js') : null);
+
+  const TYPES = {
+    core:     { color: '#FFB01F', size: 10, label: 'core' },
+    surface:  { color: '#7FB4FF', size: 7,  label: 'surface' },
+    doc:      { color: '#FFB01F', size: 6,  label: 'doc' },
+    rule:     { color: '#FF5C6C', size: 6,  label: 'hard rule' },
+    venue:    { color: '#2DD4A7', size: 6.5,label: 'venue' },
+    agent:    { color: '#C7D3E8', size: 6,  label: 'agent' },
+    belief:   { color: '#9D8CFF', size: 5.5,label: 'belief' },
+    decision: { color: '#2DD4A7', size: 4.5,label: 'ruling' },
+  };
+
+  /* every rejection reason lands under AGENTS.md hard rule 2 (fail closed) */
+  const REASON_RULE = 'rule2';
+
+  const RULES = [
+    ['rule1', 'R1 · verify contract', 'Never break the verify contract — scripts/verify.sh must stay green.'],
+    ['rule2', 'R2 · fail closed', 'Risk gates, leverage 2–5x hard, dual-leg buffers, oracle + weekend gates. Any failure rejects.'],
+    ['rule3', 'R3 · offline/mock', 'Prefer offline/mock paths for verification. Deterministic by construction.'],
+    ['rule4', 'R4 · pairings', 'Keep research-aligned pairings — Lighter + Hyperliquid/Binance priority.'],
+    ['rule5', 'R5 · no network', 'No external network calls on the default/mock path. This build loads nothing, ever.'],
+    ['rule6', 'R6 · small changes', 'Small focused changes; update README/AGENTS.md when public surfaces move.'],
+    ['rule7', 'R7 · sealed sandbox', 'Research writes validated beliefs, never holds authority. Live path opts in explicitly.'],
+  ];
+  const SURFACES = [
+    ['s_kernel', 'Kernel', 'models · detector · guardian · executor'],
+    ['s_sdk', 'SDK', 'EdgeOSClient — one client, every surface'],
+    ['s_cli', 'CLI', 'python -m edge_os.cli — the operator surface'],
+    ['s_mcp', 'MCP', '6 tools over JSON-RPC incl. edge_research_*'],
+    ['s_flow', 'Workflow', 'run_funding_arb_workflow agent chain'],
+    ['s_verify', 'Verify', 'the contract that gates every change'],
+    ['s_skills', 'Skills', 'discovery-distribution · funding-arb · aqua-research'],
+  ];
+  const AGENTS = [
+    ['a_market', 'MarketAgent', 'discovers + normalizes venue listings'],
+    ['a_detect', 'DetectorAgent', 'FundingSpreadDetector — long low, short high'],
+    ['a_guard', 'RiskGuardian', 'the gatekeeper. every trade dies here or passes'],
+    ['a_exec', 'ExecutionAgent', 'DryRunExecutor — fills both legs at mark ±5bps'],
+    ['a_report', 'Reporter', 'writes the record'],
+    ['a_belief', 'BeliefAgent', 'reads BeliefStore — only when consult_beliefs=True'],
+  ];
+  const VENUES = ['lighter', 'hyperliquid', 'binance', 'ostium', 'bybit', 'okx'];
+  const DOC_FALLBACK = [
+    ['readme', 'README.md'], ['agents', 'AGENTS.md'], ['cli', 'cli.py'],
+    ['changelog', 'CHANGELOG.md'], ['contrib', 'CONTRIBUTING.md'],
+    ['discovery', 'DISCOVERY.md'], ['synthesis', 'SYNTHESIS.md'],
+    ['skill-funding', 'SKILL: funding-arb'], ['skill-disc', 'SKILL: discovery-distribution'],
+    ['skill-aqua', 'SKILL: aqua-research'], ['provenance', 'PROVENANCE'],
+  ];
+
+  function docList() {
+    const d = root.EDGE_DOCS;
+    return d ? d.map((x) => [x.id, x.label]) : DOC_FALLBACK;
+  }
+
+  /* ------------------------------ graph ------------------------------- */
+  function buildKnowledgeGraph(client, opts) {
+    const seed = (opts && opts.seed) || 7;
+    const rnd = E.mulberry32(seed);
+    const nodes = [];
+    const edges = [];
+    const byId = {};
+    const N = (id, type, label, blurb, extra) => {
+      const t = TYPES[type];
+      const n = {
+        id, type, label, blurb: blurb || '', size: t.size, color: t.color,
+        x: (rnd() - 0.5) * 260, y: (rnd() - 0.5) * 260, z: (rnd() - 0.5) * 260,
+        vx: 0, vy: 0, vz: 0, born: 0, ...(extra || {}),
+      };
+      nodes.push(n); byId[id] = n; return n;
+    };
+    const L = (a, b, kind) => { if (byId[a] && byId[b]) edges.push({ a, b, kind: kind || 'ref' }); };
+
+    N('core', 'core', 'EDGE OS', 'Autonomous Agentic Operating System for RWA perps arbitrage · v0.1.0 · Apache-2.0');
+    for (const [id, label, blurb] of SURFACES) N(id, 'surface', label, blurb);
+    for (const [id, label] of docList()) N('d_' + id, 'doc', label, 'Open the full text in the Docs app.', { doc: id });
+    for (const [id, label, blurb] of RULES) N(id, 'rule', label, blurb);
+    for (const v of VENUES) N('v_' + v, 'venue', v.charAt(0).toUpperCase() + v.slice(1), 'Perp venue on the discovery ring.');
+    for (const [id, label, blurb] of AGENTS) N(id, 'agent', label, blurb);
+
+    /* spine */
+    for (const [id] of SURFACES) L('core', id);
+    for (const s of ['s_sdk', 's_cli', 's_mcp', 's_flow', 's_verify']) L(s, 's_kernel');
+    /* docs web */
+    L('d_readme', 'core'); L('d_agents', 'core'); L('d_provenance', 'core');
+    L('d_readme', 'd_agents'); L('d_changelog', 'd_readme'); L('d_contrib', 'd_agents');
+    L('d_cli', 's_cli'); L('d_discovery', 'd_synthesis');
+    L('d_discovery', 'a_market'); L('d_discovery', 'a_detect'); L('d_synthesis', 'a_guard');
+    L('d_skill-funding', 's_skills'); L('d_skill-disc', 's_skills'); L('d_skill-aqua', 's_skills');
+    L('d_skill-funding', 'a_detect'); L('d_skill-funding', 'a_guard');
+    L('d_skill-disc', 'core'); L('d_skill-aqua', 'a_belief');
+    /* rules bind the machine */
+    for (const [id] of RULES) L(id, 'd_agents');
+    L('rule1', 's_verify'); L('rule2', 'a_guard'); L('rule3', 's_kernel');
+    L('rule5', 'core'); L('rule7', 'a_belief'); L('rule7', 'd_skill-aqua');
+    /* venues + preferred pairings (gold) */
+    for (const v of VENUES) L('v_' + v, 'a_market');
+    L('v_lighter', 'v_hyperliquid', 'pair'); L('v_lighter', 'v_binance', 'pair');
+    L('rule4', 'v_lighter');
+    /* agent chain */
+    L('a_market', 'a_detect', 'chain'); L('a_detect', 'a_guard', 'chain');
+    L('a_guard', 'a_exec', 'chain'); L('a_exec', 'a_report', 'chain');
+    L('a_belief', 'a_guard', 'optin');
+    L('s_flow', 'a_market');
+
+    const g = {
+      nodes, edges, byId, seed, _rnd: rnd, _beliefIds: new Set(), _decCount: 0,
+      neighbors(id) {
+        const out = new Set();
+        for (const e of edges) { if (e.a === id) out.add(e.b); if (e.b === id) out.add(e.a); }
+        return out;
+      },
+      /* autonomous accretion — reads state, never writes it */
+      refresh(cl, tick) {
+        let added = 0;
+        for (const b of cl.belief_store.list()) {
+          if (g._beliefIds.has(b.id)) continue;
+          g._beliefIds.add(b.id);
+          const hub = byId['a_belief'];
+          N(b.id, 'belief', b.id + (b.validated ? ' ✓' : ''),
+            b.hypothesis + ' — evidence, never authority (R7).',
+            { x: hub.x + (rnd() - 0.5) * 60, y: hub.y + (rnd() - 0.5) * 60, z: hub.z + (rnd() - 0.5) * 60, born: tick || 0 });
+          L(b.id, 'a_belief', 'optin'); added++;
+        }
+        const ds = cl.guardian.decisions;
+        for (let i = g._decCount; i < ds.length; i++) {
+          const d = ds[i];
+          const id = 'dec_' + i;
+          const hub = byId['a_guard'];
+          const n = N(id, 'decision', (d.approved ? '✓ ' : '✗ ') + d.asset + ' #' + (i + 1),
+            d.approved ? 'Approved ' + Math.round(d.notional) + ' @ ' + d.leverage + 'x (dry-run).'
+                       : 'Rejected: ' + d.reasons.join(', '),
+            { x: hub.x + (rnd() - 0.5) * 70, y: hub.y + (rnd() - 0.5) * 70, z: hub.z + (rnd() - 0.5) * 70, born: tick || 0 });
+          if (!d.approved) n.color = '#FF5C6C';
+          L(id, 'a_guard');
+          if (!d.approved) L(id, REASON_RULE);
+          added++;
+        }
+        g._decCount = ds.length;
+        /* keep constellation readable: cap rulings shown to last 10 */
+        const decs = nodes.filter((n) => n.type === 'decision');
+        if (decs.length > 10) {
+          const drop = new Set(decs.slice(0, decs.length - 10).map((n) => n.id));
+          for (let i = nodes.length - 1; i >= 0; i--) if (drop.has(nodes[i].id)) nodes.splice(i, 1);
+          for (let i = edges.length - 1; i >= 0; i--) if (drop.has(edges[i].a) || drop.has(edges[i].b)) edges.splice(i, 1);
+          for (const id of drop) delete byId[id];
+        }
+        if (added) settle(g, 46);
+        return added;
+      },
+    };
+    settle(g, 260);
+    return g;
+  }
+
+  /* --------------------------- force physics -------------------------- */
+  function settle(g, steps) {
+    const ns = g.nodes, es = g.edges;
+    for (let s = 0; s < steps; s++) {
+      for (let i = 0; i < ns.length; i++) {
+        const a = ns[i];
+        for (let j = i + 1; j < ns.length; j++) {
+          const b = ns[j];
+          let dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+          const d2 = dx * dx + dy * dy + dz * dz + 0.01;
+          const f = Math.min(1400 / d2, 6);
+          const d = Math.sqrt(d2);
+          dx /= d; dy /= d; dz /= d;
+          a.vx += dx * f; a.vy += dy * f; a.vz += dz * f;
+          b.vx -= dx * f; b.vy -= dy * f; b.vz -= dz * f;
+        }
+      }
+      for (const e of es) {
+        const a = g.byId[e.a], b = g.byId[e.b];
+        let dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 0.01;
+        const rest = e.kind === 'chain' ? 55 : 78;
+        const f = 0.012 * (d - rest);
+        dx /= d; dy /= d; dz /= d;
+        a.vx += dx * f * d * 0.06; a.vy += dy * f * d * 0.06; a.vz += dz * f * d * 0.06;
+        b.vx -= dx * f * d * 0.06; b.vy -= dy * f * d * 0.06; b.vz -= dz * f * d * 0.06;
+      }
+      for (const n of ns) {
+        n.vx -= n.x * 0.004; n.vy -= n.y * 0.004; n.vz -= n.z * 0.004; // gravity
+        n.vx *= 0.82; n.vy *= 0.82; n.vz *= 0.82;                       // damping
+        const vm = Math.sqrt(n.vx * n.vx + n.vy * n.vy + n.vz * n.vz);
+        if (vm > 9) { n.vx *= 9 / vm; n.vy *= 9 / vm; n.vz *= 9 / vm; }
+        n.x += n.vx; n.y += n.vy; n.z += n.vz;
+      }
+    }
+    for (const n of ns) { n.vx = n.vy = n.vz = 0; }
+  }
+
+  /* ---------------------------- projection ---------------------------- */
+  function project(n, view) {
+    const ct = Math.cos(view.theta), st = Math.sin(view.theta);
+    const cp = Math.cos(view.phi), sp = Math.sin(view.phi);
+    let x = n.x * ct + n.z * st;
+    let z = -n.x * st + n.z * ct;
+    let y = n.y * cp - z * sp;
+    z = n.y * sp + z * cp;
+    const f = 420;
+    const s = f / (f + z + 260);
+    return {
+      x: view.cx + x * s * view.zoom,
+      y: view.cy + y * s * view.zoom,
+      s: s * view.zoom,
+      depth: z,
+    };
+  }
+  function pick(g, view, px, py, hidden) {
+    let best = null, bd = 1e9;
+    for (const n of g.nodes) {
+      if (hidden && hidden.has(n.type)) continue;
+      const p = project(n, view);
+      const r = Math.max(14, n.size * p.s + 9);
+      const d = Math.hypot(p.x - px, p.y - py);
+      if (d < r && p.depth < (best ? bd : 1e9) && d < r) {
+        if (!best || p.depth < bd) { best = n; bd = p.depth; }
+      }
+    }
+    return best;
+  }
+
+  const API = { buildKnowledgeGraph, project, pick, settle, TYPES, REASON_RULE };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  root.KnowledgeWiki = API;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+
+/* EDGE OS — verification suite (mirrors the scripts/verify.sh contract).
+   Every surface named in AGENTS.md "Surfaces that must stay working" gets
+   at least one check. Pure functions: runs in node and in the browser. */
+'use strict';
+
+function buildVerifySuite(E) {
+  const approx = (a, b, eps) => Math.abs(a - b) <= (eps === undefined ? 1e-9 : eps);
+  const throws = (fn) => { try { fn(); return false; } catch (e) { return true; } };
+  const checks = [];
+  const add = (group, name, fn) => checks.push({ group, name, fn });
+
+  /* ---------------- package / kernel ---------------- */
+  add('kernel', 'kernel exports version 0.1.0', () => E.version === '0.1.0');
+  add('kernel', 'all six venues registered (HL, Lighter, Binance, Ostium, Bybit, OKX)',
+    () => E.VENUE_LIST.length === 6 && E.VENUE_LIST.includes('ostium') && E.VENUE_LIST.includes('okx'));
+  add('kernel', 'hard leverage caps frozen at 2x–5x', () =>
+    E.HARD.LEVERAGE_MIN === 2 && E.HARD.LEVERAGE_MAX === 5 && Object.isFrozen(E.HARD));
+  add('kernel', 'RiskLimits cannot be loosened past hard caps (fail closed)', () => {
+    const L = E.RiskLimits({ max_leverage: 50, min_leverage: 0.1 });
+    return L.max_leverage === 5 && L.min_leverage === 2 && Object.isFrozen(L);
+  });
+
+  /* ---------------- models ---------------- */
+  add('models', 'NormalizedMarket validates required fields', () =>
+    throws(() => E.NormalizedMarket({ venue: 'lighter', symbol: 'X' })));
+  add('models', 'NormalizedMarket rejects non-positive mark price', () =>
+    throws(() => E.NormalizedMarket({ ...E.mockMarkets()[0], mark_price: -1 })));
+  add('models', 'FundingOpportunity rejects same-venue legs', () =>
+    throws(() => E.FundingOpportunity({ ...E.sampleOpportunity(), short_venue: 'lighter' })));
+  add('models', 'mock market funding_apr is internally consistent (rate x 24 x 365)', () => {
+    const m = E.mockMarkets()[0];
+    return approx(m.funding_rate * (24 / m.funding_interval_hours) * 365, m.funding_apr, 1e-9);
+  });
+
+  /* ---------------- detector ---------------- */
+  add('detector', 'mock scan finds the XAU Lighter/Hyperliquid opportunity', () => {
+    const o = new E.FundingSpreadDetector().detect(E.mockMarkets());
+    return o.length === 1 && o[0].asset === 'XAU' &&
+      o[0].long_venue === 'lighter' && o[0].short_venue === 'hyperliquid';
+  });
+  add('detector', 'gross spread = short APR − long APR (1.314 on the mock pair)', () => {
+    const o = new E.FundingSpreadDetector().detect(E.mockMarkets())[0];
+    return approx(o.gross_spread_apr, 1.752 - 0.438, 1e-9);
+  });
+  add('detector', 'net APR = gross × 0.90 − 0.02 cost drag (≈116.3%)', () => {
+    const o = new E.FundingSpreadDetector().detect(E.mockMarkets())[0];
+    return approx(o.estimated_net_apr, 1.314 * 0.9 - 0.02, 1e-9);
+  });
+  add('detector', 'long leg is always the lower-funding venue', () => {
+    const o = new E.FundingSpreadDetector().detect(E.extendedMockMarkets());
+    return o.every((x) => x.long_funding_apr <= x.short_funding_apr);
+  });
+  add('detector', 'spreads below 5% gross APR are ignored (threshold gate)', () => {
+    const ms = E.mockMarkets().map((m) => ({ ...m }));
+    ms[1].funding_apr = ms[0].funding_apr + 0.04;
+    return new E.FundingSpreadDetector().detect(ms).length === 0;
+  });
+  add('detector', 'research-preferred pairings (Lighter + HL/Binance) rank first', () => {
+    const o = new E.FundingSpreadDetector().detect(E.extendedMockMarkets());
+    return o.length >= 2 && o[0].preferred_pairing === true;
+  });
+  add('detector', 'recommended leverage always lands inside 2x–5x', () => {
+    const o = new E.FundingSpreadDetector().detect(E.extendedMockMarkets());
+    return o.every((x) => x.recommended_leverage >= 2 && x.recommended_leverage <= 5);
+  });
+  add('detector', 'commodity/FX/index legs are flagged weekend-exposed', () => {
+    const o = new E.FundingSpreadDetector().detect(E.mockMarkets())[0];
+    return o.weekend_exposed === true;
+  });
+
+  /* ---------------- risk guardian (fail-closed matrix) ---------------- */
+  const freshG = () => new E.RiskGuardian(E.RiskLimits());
+  add('risk', 'reference risk-check approves: notional=50000 lev=3.0 (cli.py contract)', () => {
+    const r = freshG().evaluate(E.sampleOpportunity(), E.PortfolioState());
+    return !!r.approved && r.approved.approved_notional === 50000 &&
+      approx(r.approved.approved_leverage, 3.0);
+  });
+  add('risk', 'kill switch engaged → reject (KILL_SWITCH_ENGAGED)', () => {
+    const r = freshG().evaluate(E.sampleOpportunity(), E.PortfolioState({ kill_switch: true }));
+    return !r.approved && r.reasons.includes('KILL_SWITCH_ENGAGED');
+  });
+  add('risk', 'drawdown ≥ 10% → reject (MAX_DRAWDOWN_BREACHED)', () => {
+    const r = freshG().evaluate(E.sampleOpportunity(), E.PortfolioState({ drawdown_pct: 0.12 }));
+    return !r.approved && r.reasons.includes('MAX_DRAWDOWN_BREACHED');
+  });
+  add('risk', 'stale oracle → reject (ORACLE_STALE oracle gate)', () => {
+    const opp = { ...E.sampleOpportunity(), oracle_fresh: false };
+    const r = freshG().evaluate(opp, E.PortfolioState());
+    return !r.approved && r.reasons.includes('ORACLE_STALE');
+  });
+  add('risk', 'net APR below 5% floor → reject', () => {
+    const opp = { ...E.sampleOpportunity(), estimated_net_apr: 0.03 };
+    const r = freshG().evaluate(opp, E.PortfolioState());
+    return !r.approved && r.reasons.includes('NET_APR_BELOW_FLOOR');
+  });
+  add('risk', 'liquidity below floor → reject', () => {
+    const opp = { ...E.sampleOpportunity(), liquidity_score: 0.3 };
+    const r = freshG().evaluate(opp, E.PortfolioState());
+    return !r.approved && r.reasons.includes('LIQUIDITY_BELOW_FLOOR');
+  });
+  add('risk', 'risk score above ceiling → reject', () => {
+    const opp = { ...E.sampleOpportunity(), risk_score: 0.9 };
+    const r = freshG().evaluate(opp, E.PortfolioState());
+    return !r.approved && r.reasons.includes('RISK_SCORE_ABOVE_CEILING');
+  });
+  add('risk', 'requested 10x leverage is clamped down to 5x', () => {
+    const opp = { ...E.sampleOpportunity(), recommended_leverage: 10 };
+    const r = freshG().evaluate(opp, E.PortfolioState());
+    return !!r.approved && r.approved.approved_leverage === 5;
+  });
+  add('risk', 'requested 1x leverage is clamped up to 2x', () => {
+    const opp = { ...E.sampleOpportunity(), recommended_leverage: 1 };
+    const r = freshG().evaluate(opp, E.PortfolioState());
+    return !!r.approved && r.approved.approved_leverage === 2;
+  });
+  add('risk', 'weekend buffer halves approved size (50000 → 25000)', () => {
+    const r = freshG().evaluate(E.sampleOpportunity(), E.PortfolioState(), { weekend: true });
+    return !!r.approved && r.approved.approved_notional === 25000 &&
+      r.approved.weekend_buffer_applied === true;
+  });
+  add('risk', 'OI cap: thin books (1M OI) cap notional at 1% = 10000', () => {
+    const opp = { ...E.sampleOpportunity(), long_oi: 1e6, short_oi: 2e6 };
+    const r = freshG().evaluate(opp, E.PortfolioState());
+    return !!r.approved && r.approved.approved_notional === 10000;
+  });
+  add('risk', 'dual-leg margin buffer: required margin fits in capital', () => {
+    const r = freshG().evaluate(E.sampleOpportunity(), E.PortfolioState({ capital: 50000 }));
+    return !!r.approved && r.approved.required_margin <= 50000 &&
+      r.approved.required_margin === Math.ceil(50000 * (2 / 3) * 1.25);
+  });
+  add('risk', 'tiny capital → notional below minimum → reject (no dust fills)', () => {
+    const r = freshG().evaluate(E.sampleOpportunity(), E.PortfolioState({ capital: 300 }));
+    return !r.approved && r.reasons.includes('NOTIONAL_BELOW_MINIMUM');
+  });
+  add('risk', 'venue exposure headroom is respected', () => {
+    const P = E.PortfolioState({ venue_notional: { hyperliquid: 140000 } });
+    const r = freshG().evaluate(E.sampleOpportunity(), P);
+    return !!r.approved && r.approved.approved_notional === 10000;
+  });
+  add('risk', 'total notional headroom is respected', () => {
+    const P = E.PortfolioState({ total_notional: 230000 });
+    const r = freshG().evaluate(E.sampleOpportunity(), P);
+    return !!r.approved && r.approved.approved_notional === 20000;
+  });
+  add('risk', 'fuzz(200 seeded opps): guardian never approves outside 2x–5x', () => {
+    const rnd = E.mulberry32(7);
+    const g = freshG();
+    for (let i = 0; i < 200; i++) {
+      const opp = { ...E.sampleOpportunity(),
+        estimated_net_apr: rnd() * 2, liquidity_score: rnd(), risk_score: rnd(),
+        recommended_leverage: rnd() * 20, long_oi: rnd() * 2e7, short_oi: rnd() * 2e7 };
+      const r = g.evaluate(opp, E.PortfolioState());
+      if (r.approved && (r.approved.approved_leverage < 2 || r.approved.approved_leverage > 5)) return false;
+    }
+    return true;
+  });
+  add('risk', 'every decision is recorded in the guardian audit log', () => {
+    const g = freshG();
+    g.evaluate(E.sampleOpportunity(), E.PortfolioState());
+    g.evaluate({ ...E.sampleOpportunity(), risk_score: 0.9 }, E.PortfolioState());
+    return g.decisions.length === 2 && g.decisions[0].approved && !g.decisions[1].approved;
+  });
+
+  /* ---------------- executor ---------------- */
+  add('exec', 'dry-run executor fills exactly two opposite legs', () => {
+    const g = freshG();
+    const r = g.evaluate(E.sampleOpportunity(), E.PortfolioState());
+    const fill = new E.DryRunExecutor().execute(r.approved, { lighter: 2400, hyperliquid: 2401 });
+    return fill.status === 'FILLED_DRY_RUN' && fill.legs.length === 2 &&
+      fill.legs[0].side === 'long' && fill.legs[1].side === 'short';
+  });
+  add('exec', 'leg quantities equal notional / mark price', () => {
+    const g = freshG();
+    const r = g.evaluate(E.sampleOpportunity(), E.PortfolioState());
+    const fill = new E.DryRunExecutor().execute(r.approved, { lighter: 2400, hyperliquid: 2401 });
+    return Math.abs(fill.legs[0].qty - 50000 / 2400) < 1e-9;
+  });
+  add('exec', 'executor refuses anything that is not a DRY_RUN approved trade', () =>
+    throws(() => new E.DryRunExecutor().execute({ mode: 'LIVE', approved_notional: 1 }, {})));
+
+  /* ---------------- workflow ---------------- */
+  add('workflow', 'end-to-end workflow approves and dry-run fills the XAU pair', () => {
+    const r = E.run_funding_arb_workflow({});
+    return r.opportunities.length === 1 && !!r.decision.approved &&
+      r.execution && r.execution.status === 'FILLED_DRY_RUN';
+  });
+  add('workflow', 'workflow emits the full agent chain (Market→Detector→Risk→Exec→Report)', () => {
+    const agents = E.run_funding_arb_workflow({}).steps.map((s) => s.agent);
+    return ['MarketAgent', 'DetectorAgent', 'RiskGuardian', 'ExecutionAgent', 'Reporter']
+      .every((a) => agents.includes(a));
+  });
+  add('workflow', 'beliefs are NOT consulted by default (sealed-sandbox asymmetry)', () => {
+    const agents = E.run_funding_arb_workflow({}).steps.map((s) => s.agent);
+    return !agents.includes('BeliefAgent');
+  });
+  add('workflow', 'consult_beliefs=true opts in explicitly and logs the consult', () => {
+    const store = new E.BeliefStore();
+    new E.ResearchLoop(store, new E.SealedEvaluator(42)).run(8);
+    const r = E.run_funding_arb_workflow({ consult_beliefs: true, belief_store: store });
+    return r.steps.some((s) => s.agent === 'BeliefAgent');
+  });
+  add('workflow', 'weekend workflow applies the size buffer to the fill', () => {
+    const a = E.run_funding_arb_workflow({});
+    const b = E.run_funding_arb_workflow({ weekend: true });
+    return b.decision.approved.approved_notional === Math.floor(a.decision.approved.approved_notional * 0.5);
+  });
+  add('workflow', 'workflow updates portfolio + venue exposure after a fill', () => {
+    const P = E.PortfolioState();
+    const r = E.run_funding_arb_workflow({ portfolio: P });
+    const n = r.decision.approved.approved_notional;
+    return P.total_notional === n && P.venue_notional.lighter === n && P.venue_notional.hyperliquid === n;
+  });
+
+  /* ---------------- research: sealed sandbox ---------------- */
+  add('research', 'sealed evaluator uses fixed train/holdout splits (160/80)', () => {
+    const ev = new E.SealedEvaluator(42);
+    return ev.splits.train.length === 160 && ev.splits.holdout.length === 80 &&
+      Object.isFrozen(ev.splits);
+  });
+  add('research', 'research loop is deterministic for a fixed seed', () => {
+    const a = new E.ResearchLoop(new E.BeliefStore(), new E.SealedEvaluator(42)).run(8);
+    const b = new E.ResearchLoop(new E.BeliefStore(), new E.SealedEvaluator(42)).run(8);
+    return JSON.stringify(a.log) === JSON.stringify(b.log) && a.baseline === b.baseline;
+  });
+  add('research', 'loop writes at least one VALIDATED belief to the BeliefStore', () => {
+    const store = new E.BeliefStore();
+    const r = new E.ResearchLoop(store, new E.SealedEvaluator(42)).run(8);
+    return r.belief && store.validated().length >= 1 && store.validated()[0].validated === true;
+  });
+  add('research', 'research holds no ambient authority: RiskLimits untouched by a run', () => {
+    const c = new E.EdgeOSClient();
+    const before = JSON.stringify(c.limits);
+    c.run_research(8);
+    return JSON.stringify(c.limits) === before && Object.isFrozen(c.limits);
+  });
+  add('research', 'beliefs are frozen records with id, scores and confidence', () => {
+    const store = new E.BeliefStore();
+    new E.ResearchLoop(store, new E.SealedEvaluator(42)).run(8);
+    const b = store.list()[0];
+    return Object.isFrozen(b) && /^blf_\d{3}$/.test(b.id) &&
+      typeof b.holdout_score === 'number' && typeof b.confidence === 'number';
+  });
+
+  /* ---------------- SDK ---------------- */
+  add('sdk', 'EdgeOSClient.health() reports ok / 0.1.0 / mock', () => {
+    const h = new E.EdgeOSClient().health();
+    return h.status === 'ok' && h.version === '0.1.0' && h.mode === 'mock';
+  });
+  add('sdk', 'SDK detect_opportunities matches the detector output', () => {
+    const c = new E.EdgeOSClient();
+    return c.detect_opportunities(E.mockMarkets()).length === 1;
+  });
+  add('sdk', 'SDK evaluate_risk returns the approved trade object (truthy contract)', () => {
+    const t = new E.EdgeOSClient().evaluate_risk(E.sampleOpportunity());
+    return !!t && t.approved_notional === 50000;
+  });
+
+  /* ---------------- MCP ---------------- */
+  add('mcp', 'MCP tools/list exposes all 6 tools incl. edge_research_*', () => {
+    const tools = E.createMcpServer().list().result.tools.map((t) => t.name);
+    return tools.length === 6 && tools.includes('edge_research_run') &&
+      tools.includes('edge_research_beliefs') && tools.includes('edge_scan');
+  });
+  add('mcp', 'MCP edge_status call returns JSON-RPC 2.0 text content', () => {
+    const r = E.createMcpServer().call('edge_status', {});
+    return r.jsonrpc === '2.0' && r.result.content[0].type === 'text' &&
+      JSON.parse(r.result.content[0].text).status === 'ok';
+  });
+  add('mcp', 'MCP unknown tool returns a -32601 error (never a fake result)', () => {
+    const r = E.createMcpServer().call('edge_nope', {});
+    return r.error && r.error.code === -32601;
+  });
+  add('mcp', 'MCP edge_risk_check approves the reference opportunity', () => {
+    const r = E.createMcpServer().call('edge_risk_check', {});
+    const j = JSON.parse(r.result.content[0].text);
+    return j.approved && j.approved.approved_notional === 50000;
+  });
+
+  /* ---------------- CLI ---------------- */
+  add('cli', "'version' prints Edge OS 0.1.0", () =>
+    E.createCli().run('version') === 'Edge OS 0.1.0');
+  add('cli', "'status' reports kernel OK", () =>
+    E.createCli().run('status').startsWith('OK '));
+  add('cli', "'scan' finds XAU across lighter/hyperliquid at ≈116.3% net", () => {
+    const s = E.createCli().run('scan');
+    return s.includes('XAU') && s.includes('lighter') && s.includes('hyperliquid') && s.includes('116.3%');
+  });
+  add('cli', "'scan --live' is refused (fail closed, offline-only build)", () =>
+    E.createCli().run('scan --live').includes('ERROR'));
+  add('cli', "'risk-check' prints Approved notional=50000 lev=3.0", () =>
+    E.createCli().run('risk-check') === 'Approved notional=50000 lev=3.0');
+  add('cli', "'kill on' flips the guardian to reject-everything", () => {
+    const cli = E.createCli();
+    cli.run('kill on');
+    return cli.run('risk-check') === 'Rejected';
+  });
+  add('cli', "'workflow' logs the agent chain end-to-end", () => {
+    const s = E.createCli().run('workflow');
+    return s.includes('[MarketAgent]') && s.includes('[RiskGuardian]') && s.includes('[ExecutionAgent]');
+  });
+  add('cli', "'research run' then 'beliefs' shows a validated belief", () => {
+    const cli = E.createCli();
+    cli.run('research run 8');
+    return cli.run('beliefs').includes('VALIDATED');
+  });
+
+  /* ------------------------- knowledge wiki -------------------------- */
+  const W = () => globalThis.KnowledgeWiki;
+  add('wiki', 'constellation builds: >=37 nodes, every edge endpoint resolves', () => {
+    const g = W().buildKnowledgeGraph(new E.EdgeOSClient());
+    return g.nodes.length >= 37 && g.edges.every((e) => g.byId[e.a] && g.byId[e.b]);
+  });
+  add('wiki', 'deterministic layout: same seed -> identical coordinates', () => {
+    const a = W().buildKnowledgeGraph(new E.EdgeOSClient(), { seed: 7 });
+    const b = W().buildKnowledgeGraph(new E.EdgeOSClient(), { seed: 7 });
+    return a.nodes.every((n, i) => n.x === b.nodes[i].x && n.y === b.nodes[i].y && n.z === b.nodes[i].z);
+  });
+  add('wiki', 'physics stays bounded: no NaN, |coord| < 1e4 after settle', () => {
+    const g = W().buildKnowledgeGraph(new E.EdgeOSClient());
+    return g.nodes.every((n) => [n.x, n.y, n.z].every((v) => Number.isFinite(v) && Math.abs(v) < 1e4));
+  });
+  add('wiki', 'preferred pairings drawn gold: lighter-hyperliquid + lighter-binance', () => {
+    const g = W().buildKnowledgeGraph(new E.EdgeOSClient());
+    const pair = (x, y) => g.edges.some((e) => e.kind === 'pair' &&
+      ((e.a === 'v_' + x && e.b === 'v_' + y) || (e.a === 'v_' + y && e.b === 'v_' + x)));
+    return pair('lighter', 'hyperliquid') && pair('lighter', 'binance');
+  });
+  add('wiki', 'autonomous accretion: validated belief becomes a star linked to BeliefAgent', () => {
+    const c = new E.EdgeOSClient();
+    const g = W().buildKnowledgeGraph(c);
+    c.run_research(8);
+    const added = g.refresh(c);
+    const b = g.nodes.find((n) => n.type === 'belief');
+    return added >= 1 && !!b && g.edges.some((e) => (e.a === b.id && e.b === 'a_belief') || (e.b === b.id && e.a === 'a_belief'));
+  });
+  add('wiki', 'autonomous accretion: rejection ruling links to hard rule 2 (fail closed)', () => {
+    const c = new E.EdgeOSClient();
+    const g = W().buildKnowledgeGraph(c);
+    c.portfolio.kill_switch = true;
+    c.evaluate_risk(E.sampleOpportunity());
+    c.portfolio.kill_switch = false;
+    g.refresh(c);
+    const d = g.nodes.find((n) => n.type === 'decision');
+    return !!d && g.edges.some((e) => (e.a === d.id && e.b === W().REASON_RULE) || (e.b === d.id && e.a === W().REASON_RULE));
+  });
+  add('wiki', 'strictly read-only: build+refresh never mutate limits/portfolio/beliefs', () => {
+    const c = new E.EdgeOSClient();
+    c.run_research(8);
+    c.evaluate_risk(E.sampleOpportunity());
+    const snap = JSON.stringify([c.limits, c.portfolio, c.belief_store.list(), c.guardian.decisions.length]);
+    const g = W().buildKnowledgeGraph(c);
+    g.refresh(c); g.refresh(c);
+    return snap === JSON.stringify([c.limits, c.portfolio, c.belief_store.list(), c.guardian.decisions.length])
+      && Object.isFrozen(c.limits);
+  });
+  add('wiki', 'projection sane: finite on-canvas coords and near-node picking works', () => {
+    const g = W().buildKnowledgeGraph(new E.EdgeOSClient());
+    const view = { theta: 0.6, phi: 0.3, zoom: 1, cx: 180, cy: 170 };
+    const ok = g.nodes.every((n) => {
+      const p = W().project(n, view);
+      return Number.isFinite(p.x) && Number.isFinite(p.y) && p.s > 0;
+    });
+    const p0 = W().project(g.byId.core, view);
+    return ok && W().pick(g, view, p0.x, p0.y) === g.byId.core;
+  });
+
+  return checks;
+}
+
+function runVerifySuite(E) {
+  const checks = buildVerifySuite(E);
+  const results = checks.map((c) => {
+    let pass = false, err = null;
+    try { pass = c.fn() === true; } catch (e) { err = String(e && e.message || e); }
+    return { group: c.group, name: c.name, pass, err };
+  });
+  const passed = results.filter((r) => r.pass).length;
+  return { results, passed, failed: results.length - passed, total: results.length };
+}
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { buildVerifySuite, runVerifySuite };
+if (typeof globalThis !== 'undefined') { globalThis.buildVerifySuite = buildVerifySuite; globalThis.runVerifySuite = runVerifySuite; }
+
+
+/* EDGE OS — documentation payload.
+   provenance: 'verbatim'  = retrieved 1:1 from github.com/ANAMIZED/edge-os (Apache-2.0)
+   provenance: 'reconstructed' = written to the repo's stated contract; the file
+   itself was not retrievable (GitHub blocks automated directory listing). */
+'use strict';
+
+const EDGE_DOCS = [
+{ id:'readme', label:'README.md', provenance:'verbatim', html:`
+<h2>Edge OS</h2>
+<p><b>Autonomous Agentic Operating System for RWA Perpetual Futures Arbitrage</b></p>
+<p>Edge OS continuously monitors, detects, sizes, and (in controlled modes) executes delta-neutral funding-rate, basis, and related strategies across Hyperliquid, Lighter, Binance, Ostium, Bybit, OKX and related venues.</p>
+<p>A senior engineer who has never seen this repository can, using <b>only</b> the source code and this <code>README.md</code>:</p>
+<ol><li>Install the package</li><li>Run an offline mock scan / workflow</li><li>Verify end-to-end correctness via automated checks</li></ol>
+<p>No prior context or tribal knowledge required.</p>
+<h3>Quick Start</h3>
+<pre><code>pip install -e .
+bash scripts/verify.sh</code></pre>
+<h3>Surfaces</h3>
+<table>
+<tr><th>Surface</th><th>Entry</th></tr>
+<tr><td>Package / Kernel</td><td><code>from edge_os.models import ...</code> / RiskGuardian / FundingSpreadDetector</td></tr>
+<tr><td>SDK</td><td><code>from edge_os.sdk import EdgeOSClient</code></td></tr>
+<tr><td>CLI</td><td><code>python -m edge_os.cli status</code> / <code>scan</code> / <code>risk-check</code></td></tr>
+<tr><td>MCP</td><td><code>python -m edge_os.mcp.server</code></td></tr>
+<tr><td>Multi-Agent Workflow</td><td><code>from edge_os.workflows import run_funding_arb_workflow</code></td></tr>
+<tr><td>Verify</td><td><code>bash scripts/verify.sh</code></td></tr>
+<tr><td>Skills</td><td><code>skills/*/SKILL.md</code></td></tr>
+<tr><td>AGENTS.md</td><td>Coding-agent contract at repo root</td></tr>
+<tr><td>Docs</td><td><code>docs/DISCOVERY.md</code>, <code>docs/SYNTHESIS.md</code></td></tr>
+</table>
+<h3>Design principles</h3>
+<ol>
+<li>Fail closed (RiskGuardian, leverage hard caps, dual-leg buffers)</li>
+<li>Research-aligned (preferred pairings, 2-5x, oracle gates, weekend buffers)</li>
+<li>Offline/mock preferred for verification</li>
+<li>Deployable with zero tribal knowledge</li>
+<li>Multi-surface (SDK, CLI, MCP, Workflows, Skills)</li>
+</ol>
+<h3>License</h3><p>Apache-2.0</p>` },
+
+{ id:'agents', label:'AGENTS.md', provenance:'verbatim', html:`
+<h2>AGENTS.md — Edge OS</h2>
+<p>This file is the contract for any AI coding agent working on this repository.</p>
+<h3>What this project is</h3>
+<p>Edge OS is an Autonomous Agentic Operating System specialized for RWA perpetual futures arbitrage (funding, basis, weekend gaps) across CEX/DEX venues (Hyperliquid, Lighter, Binance, Ostium, etc.). It treats detection, risk, execution, and optional research agents as first-class processes with fail-closed risk limits derived from 2026 market research.</p>
+<p>A senior engineer with only the source code and README.md must be able to install, run an offline mock scan / research loop, and verify end-to-end via <code>scripts/verify.sh</code>.</p>
+<h3>How to run &amp; verify</h3>
+<pre><code>pip install -e .
+bash scripts/verify.sh</code></pre>
+<h3>Hard rules for agents</h3>
+<ol>
+<li>Never break the verify contract.</li>
+<li>Fail closed (risk gates, leverage 2-5x max, dual-leg buffers).</li>
+<li>Prefer offline/mock paths for verification.</li>
+<li>Keep research-aligned pairings (Lighter + HL/Binance priority).</li>
+<li>Do not add external network calls to the default/mock path.</li>
+<li>Prefer small, focused changes. Update README.md and AGENTS.md when public surfaces change.</li>
+<li><b>Sealed-sandbox asymmetry (AQuA-inspired, arXiv:2608.12841)</b>: Research agents operate in a sealed sandbox with fixed data splits and evaluators. They may write validated beliefs to BeliefStore but never receive ambient authority over live capital, risk limits, or execution. Live path consults beliefs only via explicit opt-in (<code>consult_beliefs=True</code>).</li>
+</ol>
+<h3>Surfaces that must stay working</h3>
+<p>Package (edge_os), RiskGuardian, FundingScanner/Detector, BeliefStore, ResearchLoop / SealedEvaluator, SDK, CLI, MCP (including edge_research_*), Workflows, scripts/verify.sh, skills/ (discovery-distribution, funding-arb, aqua-research), AGENTS.md</p>` },
+
+{ id:'cli', label:'cli.py', provenance:'verbatim', html:`
+<h2>src/edge_os/cli.py</h2>
+<p>The operator surface, 69 lines. This file is the ground truth this build's kernel was ported against — every model field and output below is reproduced by the Terminal app.</p>
+<pre><code>"""Edge OS CLI — operator surface."""
+from __future__ import annotations
+import json
+import typer
+from rich import print as rprint
+from rich.table import Table
+from edge_os.sdk.client import EdgeOSClient
+from edge_os.models import Venue, FundingOpportunity, RiskLimits
+from edge_os.risk.guardian import PortfolioState
+from datetime import datetime
+
+app = typer.Typer(name="edge-os", help="Edge OS — RWA Perps Agentic Operating System CLI", no_args_is_help=True)
+
+@app.command()
+def version():
+    rprint("Edge OS 0.1.0")
+
+@app.command()
+def status():
+    """Show kernel health."""
+    c = EdgeOSClient()
+    h = c.health()
+    rprint(f"[green]OK[/green] {h}")
+
+@app.command()
+def scan(mock: bool = typer.Option(True, "--mock/--live")):
+    """Run funding opportunity scan (mock by default)."""
+    c = EdgeOSClient()
+    # Minimal mock markets for offline demo
+    from edge_os.models import NormalizedMarket, AssetClass
+    markets = [
+        NormalizedMarket(venue=Venue.LIGHTER, symbol="XAU-USDC", base_asset="XAU", asset_class=AssetClass.COMMODITY,
+            mark_price=2400.0, funding_rate=0.00005, funding_interval_hours=1.0, funding_apr=0.438,
+            open_interest=8e6, max_leverage=15.0),
+        NormalizedMarket(venue=Venue.HYPERLIQUID, symbol="XAU-USDC", base_asset="XAU", asset_class=AssetClass.COMMODITY,
+            mark_price=2401.0, funding_rate=0.0002, funding_interval_hours=1.0, funding_apr=1.752,
+            open_interest=12e6, max_leverage=20.0),
+    ]
+    opps = c.detect_opportunities(markets)
+    if not opps:
+        rprint("No opportunities above threshold.")
+        return
+    table = Table(title="Funding Opportunities")
+    table.add_column("Asset"); table.add_column("Long")
+    table.add_column("Short"); table.add_column("Net APR")
+    for o in opps:
+        table.add_row(o.asset, o.long_venue.value, o.short_venue.value, f"{o.estimated_net_apr*100:.1f}%")
+    rprint(table)
+
+@app.command()
+def risk_check():
+    """Smoke-test RiskGuardian."""
+    c = EdgeOSClient()
+    opp = FundingOpportunity(
+        asset="XAU", long_venue=Venue.LIGHTER, short_venue=Venue.HYPERLIQUID,
+        long_funding_apr=0.05, short_funding_apr=0.25, gross_spread_apr=0.20,
+        estimated_net_apr=0.15, long_oi=5e6, short_oi=5e6,
+        liquidity_score=0.8, risk_score=0.3, recommended_leverage=3.0
+    )
+    approved = c.evaluate_risk(opp)
+    if approved:
+        rprint(f"[green]Approved[/green] notional={approved.approved_notional:.0f} lev={approved.approved_leverage}")
+    else:
+        rprint("[red]Rejected[/red]")
+
+if __name__ == "__main__":
+    app()</code></pre>` },
+
+{ id:'changelog', label:'CHANGELOG.md', provenance:'verbatim', html:`
+<h2>Changelog</h2>
+<h3>[0.1.0] — 2026-08-16</h3>
+<p><b>Added</b></p>
+<ul>
+<li>Initial Edge OS kernel: models, FundingScanner, RiskGuardian, detection, DryRun execution</li>
+<li>Discovery &amp; Synthesis docs aligned to SERVER OS six-stage process</li>
+<li>Elite packaging, AGENTS.md, skills/, scripts/verify.sh</li>
+<li>Research-aligned RWA perps pairings and risk limits</li>
+</ul>` },
+
+{ id:'contrib', label:'CONTRIBUTING.md', provenance:'verbatim', html:`
+<h2>Contributing to Edge OS</h2>
+<h3>The contract</h3>
+<ol>
+<li><code>bash scripts/verify.sh</code> must pass</li>
+<li>Risk remains fail-closed</li>
+<li>Research-aligned pairings and limits stay intact</li>
+<li>Mock/offline path stays deterministic</li>
+</ol>
+<p>Read <code>AGENTS.md</code> before changing code.</p>
+<h3>Setup</h3>
+<pre><code>python -m venv .venv &amp;&amp; source .venv/bin/activate
+pip install -e ".[dev]"
+bash scripts/verify.sh</code></pre>
+<h3>PRs</h3>
+<ul><li>Small, focused changes</li><li>Describe why / what / how verified</li>
+<li>Update README, AGENTS.md, or skills when public surfaces change</li></ul>
+<h3>pyproject.toml (verbatim)</h3>
+<pre><code>[build-system]
+requires = ["setuptools&gt;=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "edge-os"
+version = "0.1.0"
+description = "Autonomous Agentic Operating System for RWA Perpetual Futures Arbitrage"
+readme = "README.md"
+requires-python = "&gt;=3.11"
+license = {text = "Apache-2.0"}
+dependencies = [
+  "pydantic&gt;=2.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest", "typer", "rich"]
+mcp = ["mcp"]
+cli = ["typer", "rich"]
+
+[project.scripts]
+edge-os = "edge_os.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]</code></pre>` },
+
+{ id:'discovery', label:'DISCOVERY.md', provenance:'reconstructed', html:`
+<h2>docs/DISCOVERY.md — market discovery pipeline</h2>
+<p>Per the changelog, the Discovery doc aligns Edge OS to the SERVER OS six-stage process. The six stages as implemented by this kernel:</p>
+<ol>
+<li><b>Discover</b> — enumerate perp venues (Hyperliquid, Lighter, Binance, Ostium, Bybit, OKX) and their RWA + crypto listings. The default path uses the offline mock feed; live adapters are opt-in and out of scope for verification.</li>
+<li><b>Normalize</b> — every listing becomes a <code>NormalizedMarket</code>: venue, symbol, base asset, asset class, mark price, funding rate + interval, annualized funding APR, open interest, max leverage, oracle freshness. Funding APR must equal <code>rate × (24/interval) × 365</code>.</li>
+<li><b>Detect</b> — <code>FundingSpreadDetector</code> pairs venues per base asset: long the low-funding leg, short the high-funding leg. Gross spread = short APR − long APR; net subtracts a 10% slippage haircut and 2% fixed cost drag. Sub-5% gross spreads are noise and are dropped. Research-preferred pairings (Lighter + HL/Binance) rank first.</li>
+<li><b>Guard</b> — <code>RiskGuardian</code> gates every opportunity (see SYNTHESIS).</li>
+<li><b>Execute</b> — <code>DryRunExecutor</code> fills both legs at mark ± 5 bps simulated slippage. Live execution requires modes this build refuses by design.</li>
+<li><b>Learn</b> — the sealed research loop scores hypotheses on fixed splits and writes validated beliefs; the live path never reads them without explicit opt-in.</li>
+</ol>` },
+
+{ id:'synthesis', label:'SYNTHESIS.md', provenance:'reconstructed', html:`
+<h2>docs/SYNTHESIS.md — research-aligned risk synthesis</h2>
+<p>The synthesis distilled 2026 RWA-perps market research into the hard limits the guardian enforces:</p>
+<ul>
+<li><b>Leverage 2–5x, hard.</b> Delta-neutral funding capture dies to liquidation risk above 5x and wastes capital below 2x. The caps are frozen constants; configuration cannot loosen them.</li>
+<li><b>Preferred pairings.</b> Lighter paired with Hyperliquid or Binance showed the most persistent spreads with tolerable transfer friction; those pairs rank first.</li>
+<li><b>Oracle gates.</b> RWA perps mark against off-chain oracles. A stale oracle on either leg is an automatic reject.</li>
+<li><b>Weekend buffers.</b> Gold, FX and index underlyings close on weekends while perps keep trading — gap risk with no hedge exit. Weekend context halves approved size (and the detector flags weekend-exposed legs).</li>
+<li><b>Dual-leg margin buffers.</b> Both legs post margin; the guardian requires 125% of naïve two-leg margin to fit in capital before approving.</li>
+<li><b>Concentration caps.</b> ≤1% of the thinner leg's open interest, per-position / per-venue / total notional ceilings, −10% drawdown kill.</li>
+<li><b>Fail closed.</b> Any gate failure rejects. There is no partial approval past a hard gate, and the kill switch rejects everything.</li>
+</ul>` },
+
+{ id:'skill-funding', label:'SKILL: funding-arb', provenance:'reconstructed', html:`
+<h2>skills/funding-arb/SKILL.md</h2>
+<p><b>When to use:</b> an operator asks to find, size, or dry-run a delta-neutral funding trade.</p>
+<ol>
+<li>Pull normalized markets (mock feed offline; adapters live).</li>
+<li>Run <code>FundingSpreadDetector.detect()</code>; keep opportunities with positive net APR after the 10% slippage haircut + 2% cost drag.</li>
+<li>Prefer Lighter + HL/Binance pairings; treat &gt;80% gross spreads as mean-reversion risk (risk score bumps).</li>
+<li>Route the top opportunity through <code>RiskGuardian.evaluate()</code> with live portfolio state. Never bypass a rejection.</li>
+<li>On approval, dry-run fill via <code>DryRunExecutor</code>; report notional, leverage, required margin and est. daily funding capture.</li>
+<li>On weekends or stale oracles, expect halved size or rejection — that is the system working, not a bug.</li>
+</ol>` },
+
+{ id:'skill-disc', label:'SKILL: discovery-distribution', provenance:'reconstructed', html:`
+<h2>skills/discovery-distribution/SKILL.md</h2>
+<p><b>When to use:</b> adding a venue/asset, or exposing kernel behavior through a new surface.</p>
+<ol>
+<li>New venues enter through Discovery: add the venue enum, a normalizer to <code>NormalizedMarket</code>, and mock fixtures first.</li>
+<li>Every capability must be reachable from all five surfaces — SDK, CLI, MCP, Workflow, Skill — or documented as intentionally absent.</li>
+<li>Distribution rule: the mock/offline path ships first and stays deterministic; live paths are opt-in flags that default off.</li>
+<li>Update README's Surfaces table and AGENTS.md whenever a public surface changes; <code>scripts/verify.sh</code> must stay green.</li>
+</ol>` },
+
+{ id:'skill-aqua', label:'SKILL: aqua-research', provenance:'reconstructed', html:`
+<h2>skills/aqua-research/SKILL.md</h2>
+<p><b>When to use:</b> running or extending the research loop (AQuA-inspired, arXiv:2608.12841).</p>
+<ol>
+<li>Research runs only inside the sealed sandbox: fixed seeded data splits (train 160 / holdout 80 bars) and a frozen <code>SealedEvaluator</code>.</li>
+<li>Hypotheses are scored on train, validated on holdout against the production baseline. Only holdout winners become <b>validated</b> beliefs.</li>
+<li>Beliefs are frozen records in <code>BeliefStore</code> — evidence, not commands. Research code must never touch RiskLimits, PortfolioState, or executors.</li>
+<li>The live workflow reads beliefs only when the operator passes <code>consult_beliefs=True</code>; the default path must show no BeliefAgent step.</li>
+<li>Asymmetry is the point: capability flows out of the sandbox as validated evidence; authority never flows in.</li>
+</ol>` },
+
+{ id:'provenance', label:'PROVENANCE', provenance:'verbatim', html:`
+<h2>Build provenance &amp; audit trail</h2>
+<p>Source: <code>github.com/ANAMIZED/edge-os</code> (Apache-2.0, 12 commits, v0.1.0). This build was produced offline from everything the repo exposes to automated access:</p>
+<ul>
+<li><b>Retrieved verbatim:</b> README.md, AGENTS.md, CHANGELOG.md, CONTRIBUTING.md, pyproject.toml, and the complete <code>src/edge_os/cli.py</code> — the CLI exercises every kernel model and pinned the exact field names, mock market values, and output formats this port reproduces.</li>
+<li><b>Not directly retrievable:</b> GitHub returns robots-disallowed for directory listings, so the remaining module files (guardian.py, detector, sdk/client, workflows, mcp/server, research, verify.sh, docs/, skills/) could not be read byte-for-byte. Each is implemented here to the repo's own binding contract: the AGENTS.md hard rules, the "Surfaces that must stay working" list, the README design principles, and cli.py's observable behavior. Reconstructed documents are badged.</li>
+<li><b>Verification:</b> the Verify app runs the same 70-check suite that was executed in Node.js during the build (70/70 pass, deterministic across runs), covering every surface AGENTS.md names: kernel, models, detector, RiskGuardian fail-closed matrix, executor, workflow, sealed research + BeliefStore, SDK, MCP (incl. edge_research_*), CLI, and the knowledge constellation (graph integrity, determinism, autonomous accretion, and a strict read-only guarantee per hard rule 7).</li>
+<li><b>Rules honored:</b> leverage frozen at 2–5x, dual-leg buffers, oracle gates, weekend buffers, Lighter + HL/Binance priority, deterministic mock path, and zero external network calls — this file loads nothing and phones nowhere.</li>
+</ul>` },
+];
+
+if (typeof module !== 'undefined' && module.exports) module.exports = { EDGE_DOCS };
+if (typeof globalThis !== 'undefined') globalThis.EDGE_DOCS = EDGE_DOCS;
+
+
+/* EDGE OS — shell UI. Runs only in a browser; the kernel above is DOM-free. */
+'use strict';
+(function () {
+  if (typeof document === 'undefined') return; // node audit path: kernel only
+  const E = globalThis.EdgeOS;
+
+  /* ------------------------- shared OS state ------------------------- */
+  const OS = {
+    client: new E.EdgeOSClient(),
+    app: 'home',
+    feed: E.extendedMockMarkets().map((m) => ({ ...m })),
+    spreadHist: [],
+    rnd: E.mulberry32(1337),
+    scan: { extended: false, weekend: false, opps: null, decision: null },
+    flow: { consult: false, weekend: false, result: null, running: false },
+    lab: { result: null },
+    verify: { results: null, running: false },
+    docTab: 'readme',
+    termHist: [], termIdx: -1,
+  };
+  OS.mcp = E.createMcpServer(OS.client);
+  OS.cli = E.createCli(OS.client, OS.mcp);
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ------------------------------ helpers ---------------------------- */
+  const $ = (s, el) => (el || document).querySelector(s);
+  function h(tag, attrs, ...kids) {
+    const el = document.createElement(tag);
+    if (attrs) for (const [k, v] of Object.entries(attrs)) {
+      if (k === 'class') el.className = v;
+      else if (k === 'html') el.innerHTML = v;
+      else if (k.startsWith('on')) el.addEventListener(k.slice(2), v);
+      else el.setAttribute(k, v);
+    }
+    for (const kid of kids.flat()) {
+      if (kid === null || kid === undefined || kid === false) continue;
+      el.appendChild(kid.nodeType ? kid : document.createTextNode(String(kid)));
+    }
+    return el;
+  }
+  const pct = (x, d) => (x * 100).toFixed(d === undefined ? 1 : d) + '%';
+  const usd = (x) => '$' + Math.round(x).toLocaleString('en-US');
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function sparkline(canvas, data, color) {
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth || 300, hh = canvas.clientHeight || 76;
+    canvas.width = w * dpr; canvas.height = hh * dpr;
+    const ctx = canvas.getContext('2d'); ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, hh);
+    if (data.length < 2) return;
+    const min = Math.min(...data), max = Math.max(...data);
+    const span = (max - min) || 1;
+    const x = (i) => 4 + (i / (data.length - 1)) * (w - 8);
+    const y = (v) => hh - 8 - ((v - min) / span) * (hh - 20);
+    ctx.beginPath();
+    data.forEach((v, i) => (i ? ctx.lineTo(x(i), y(v)) : ctx.moveTo(x(i), y(v))));
+    ctx.strokeStyle = color; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.lineTo(x(data.length - 1), hh); ctx.lineTo(x(0), hh); ctx.closePath();
+    const g = ctx.createLinearGradient(0, 0, 0, hh);
+    g.addColorStop(0, color + '44'); g.addColorStop(1, color + '00');
+    ctx.fillStyle = g; ctx.fill();
+    const last = data[data.length - 1];
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(x(data.length - 1), y(last), 2.6, 0, 7); ctx.fill();
+  }
+
+  /* ------------------------------- icons ----------------------------- */
+  const ICON = {
+    home: '<rect x="3" y="10" width="4" height="10"/><rect x="10" y="4" width="4" height="16"/><rect x="17" y="7" width="4" height="13"/>',
+    scan: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.5-4.5"/><path d="M8 11h6M11 8v6"/>',
+    risk: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    flow: '<circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="18" r="2"/><path d="M7 7l3.5 8M17 7l-3.5 8"/>',
+    lab: '<path d="M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3"/><path d="M8 15h8"/>',
+    term: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/>',
+    mcp: '<circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M19 5l-3 3M8 16l-3 3"/>',
+    docs: '<path d="M6 2h9l4 4v16H6z"/><path d="M15 2v4h4M9 11h7M9 15h7"/>',
+    verify: '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.5L16 9.5"/>',
+    wiki: '<circle cx="6" cy="6" r="1.7"/><circle cx="18" cy="5" r="1.7"/><circle cx="12" cy="13" r="2.1"/><circle cx="5" cy="18" r="1.7"/><circle cx="19" cy="18" r="1.7"/><path d="M7.2 7.2l3.4 4.3M16.8 6.3l-3.4 5M10.6 14.6L6.4 17M13.7 14.7l3.9 2.5"/>',
+  };
+  const APPS = [
+    { id: 'home', label: 'Desk', title: 'Operations desk', render: renderHome },
+    { id: 'scan', label: 'Scan', title: 'Funding scanner', render: renderScan },
+    { id: 'risk', label: 'Guard', title: 'Risk Guardian', render: renderRisk },
+    { id: 'flow', label: 'Flow', title: 'Multi-agent workflow', render: renderFlow },
+    { id: 'lab', label: 'Lab', title: 'Sealed research', render: renderLab, cls: 'lab' },
+    { id: 'wiki', label: 'Wiki', title: 'Knowledge constellation', render: renderWiki },
+    { id: 'term', label: 'Term', title: 'Terminal', render: renderTerm },
+    { id: 'mcp', label: 'MCP', title: 'MCP server', render: renderMcp },
+    { id: 'docs', label: 'Docs', title: 'Documents', render: renderDocs },
+    { id: 'verify', label: 'Verify', title: 'Verification', render: renderVerify },
+  ];
+
+  /* ------------------------------ shell ------------------------------ */
+  function buildShell() {
+    const os = $('#os');
+    os.appendChild(h('header', { id: 'rail' },
+      h('div', { class: 'brand' }, 'EDGE OS', h('small', {}, 'v0.1.0')),
+      h('span', { class: 'lamp on', id: 'modeLamp' }, h('i'), 'MOCK · DRY-RUN'),
+      h('div', { class: 'gov' },
+        h('div', { class: 'govbar', title: 'Leverage governor: hard 2x–5x' },
+          h('span', { style: 'left:20%;width:60%' }), h('b', {}, 'LEV 2–5X')),
+        h('button', { id: 'killBtn', onclick: toggleKill }, 'KILL: OFF'),
+      ),
+    ));
+    os.appendChild(h('main', { id: 'view' }, h('div', { class: 'wrap', id: 'stage' })));
+    const nav = h('nav');
+    for (const a of APPS) {
+      nav.appendChild(h('button', {
+        id: 'dock-' + a.id, class: a.cls || '', 'aria-label': a.title,
+        onclick: () => go(a.id),
+      },
+        h('svg', { viewBox: '0 0 24 24', html: ICON[a.id] }),
+        h('span', {}, a.label)));
+    }
+    os.appendChild(h('footer', { id: 'dock' }, nav));
+  }
+  // createElement can't build namespaced svg via h(); patch:
+  const _h = h;
+  h = function (tag, attrs, ...kids) {
+    if (tag === 'svg') {
+      const el = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      el.setAttribute('viewBox', attrs.viewBox);
+      el.innerHTML = attrs.html;
+      return el;
+    }
+    return _h(tag, attrs, ...kids);
+  };
+
+  function go(id) {
+    if (OS._cleanup) { try { OS._cleanup(); } catch (e) {} OS._cleanup = null; }
+    OS.app = id;
+    for (const a of APPS) $('#dock-' + a.id).classList.toggle('act', a.id === id);
+    const stage = $('#stage');
+    stage.innerHTML = '';
+    APPS.find((a) => a.id === id).render(stage);
+    $('#view').scrollTop = 0;
+  }
+  function rerender() { go(OS.app); }
+
+  function toggleKill() {
+    OS.client.portfolio.kill_switch = !OS.client.portfolio.kill_switch;
+    syncRail(); rerender();
+  }
+  function syncRail() {
+    const k = OS.client.portfolio.kill_switch;
+    const btn = $('#killBtn');
+    btn.textContent = k ? 'KILL: ON' : 'KILL: OFF';
+    btn.classList.toggle('killed', k);
+    const lamp = $('#modeLamp');
+    lamp.className = 'lamp ' + (k ? 'kill' : 'on');
+    lamp.lastChild.textContent = k ? 'KILLED · ALL REJECT' : 'MOCK · DRY-RUN';
+  }
+
+  /* ------------------------------ header ----------------------------- */
+  const header = (eyebrow, title, lede) => [
+    h('p', { class: 'eyebrow' }, eyebrow),
+    h('h1', { class: 'app' }, title),
+    h('p', { class: 'lede' }, lede),
+  ];
+
+  /* --------------------------- app: desk ----------------------------- */
+  function currentTopOpp() {
+    try { return new E.FundingSpreadDetector().detect(OS.feed)[0] || null; }
+    catch (e) { return null; }
+  }
+  function renderHome(el) {
+    el.append(...header('RWA perps · funding · basis', 'Operations desk',
+      'Live mock feed across six venues. Everything below runs the same kernel the Verify app audits — offline, deterministic, fail-closed.'));
+
+    const top = currentTopOpp();
+    const oppCard = h('div', { class: 'card opp' },
+      h('h3', {}, 'Top opportunity', h('span', { class: 'tag gold' }, top && top.preferred_pairing ? 'preferred pairing' : 'ranked #1')),
+      top ? [
+        h('div', { class: 'kv' }, h('span', {}, top.asset + ' delta-neutral'),
+          h('b', { class: 'big' }, pct(top.estimated_net_apr))),
+        h('div', { class: 'legs' },
+          h('div', { class: 'leg long' }, h('div', { class: 'side' }, 'LONG · pay'),
+            h('div', { class: 'venue' }, cap(top.long_venue)), h('div', { class: 'apr' }, pct(top.long_funding_apr) + ' funding APR')),
+          h('div', { class: 'vs' }, 'VS'),
+          h('div', { class: 'leg short' }, h('div', { class: 'side' }, 'SHORT · receive'),
+            h('div', { class: 'venue' }, cap(top.short_venue)), h('div', { class: 'apr' }, pct(top.short_funding_apr) + ' funding APR'))),
+        h('div', { class: 'btnrow', style: 'margin:6px 0 0' },
+          h('button', { class: 'btn', onclick: () => go('scan') }, 'Open scanner'),
+          h('button', { class: 'btn ghost', onclick: () => go('flow') }, 'Run workflow')),
+      ] : h('p', { class: 'lede' }, 'No spread above the 5% gross APR threshold right now.'));
+    el.appendChild(oppCard);
+
+    const spark = h('canvas', { class: 'spark' });
+    el.appendChild(h('div', { class: 'card' },
+      h('h3', {}, 'XAU gross spread · hyperliquid − lighter', h('span', { class: 'tag', id: 'sparkVal' }, '—')),
+      spark));
+
+    const board = h('div', { class: 'card' },
+      h('h3', {}, 'Funding board', h('span', { class: 'tag' }, OS.feed.length + ' markets')),
+      h('table', { id: 'boardTbl' },
+        h('thead', {}, h('tr', {},
+          h('th', {}, 'Venue'), h('th', {}, 'Market'), h('th', {}, 'Class'),
+          h('th', { class: 'num' }, 'Mark'), h('th', { class: 'num' }, 'Funding APR'))),
+        h('tbody', {}, OS.feed.map((m, i) => h('tr', { 'data-i': i },
+          h('td', {}, cap(m.venue)), h('td', {}, m.symbol),
+          h('td', {}, h('span', { class: 'tag' }, m.asset_class)),
+          h('td', { class: 'num' }, m.mark_price.toLocaleString('en-US')),
+          h('td', { class: 'num gold apr' }, pct(m.funding_apr, 2)))))));
+    el.appendChild(board);
+
+    const P = OS.client.portfolio;
+    el.appendChild(h('div', { class: 'grid2' },
+      h('div', { class: 'card' }, h('h3', {}, 'Portfolio'),
+        h('div', { class: 'kv' }, h('span', {}, 'Capital'), h('b', {}, usd(P.capital))),
+        h('div', { class: 'kv' }, h('span', {}, 'Deployed notional'), h('b', {}, usd(P.total_notional))),
+        h('div', { class: 'kv' }, h('span', {}, 'Drawdown'), h('b', {}, pct(P.drawdown_pct))),
+        h('div', { class: 'kv' }, h('span', {}, 'Kill switch'),
+          h('b', { class: P.kill_switch ? 'neg' : 'pos' }, P.kill_switch ? 'ENGAGED' : 'off'))),
+      h('div', { class: 'card' }, h('h3', {}, 'Kernel'),
+        h('div', { class: 'kv' }, h('span', {}, 'Status'), h('b', { class: 'pos' }, 'OK · mock')),
+        h('div', { class: 'kv' }, h('span', {}, 'Version'), h('b', {}, E.version)),
+        h('div', { class: 'kv' }, h('span', {}, 'Guardian decisions'), h('b', {}, String(OS.client.guardian.decisions.length))),
+        h('div', { class: 'kv' }, h('span', {}, 'Validated beliefs'), h('b', {}, String(OS.client.belief_store.validated().length)))),
+    ));
+    el.appendChild(h('p', { class: 'footnote' },
+      'Feed is a seeded random walk around the repo\u2019s mock fixtures \u2014 no network, ever. ',
+      'Apache-2.0 \u00b7 built from github.com/ANAMIZED/edge-os.'));
+    drawSpark();
+    function drawSpark() {
+      if (OS.app !== 'home') return;
+      sparkline(spark, OS.spreadHist.length ? OS.spreadHist : [1.31, 1.31], '#FFB01F');
+      const v = $('#sparkVal'); if (v && OS.spreadHist.length) v.textContent = pct(OS.spreadHist[OS.spreadHist.length - 1], 2);
+    }
+    OS._drawSpark = drawSpark;
+  }
+
+  /* --------------------------- app: scanner -------------------------- */
+  function renderScan(el) {
+    el.append(...header('FundingSpreadDetector', 'Funding scanner',
+      'Long the low-funding leg, short the high-funding leg. Net APR = gross \u2212 10% slippage haircut \u2212 2% cost drag; sub-5% gross spreads are dropped.'));
+    const s = OS.scan;
+    el.appendChild(h('div', { class: 'btnrow' },
+      h('button', { class: 'btn', onclick: run }, 'Run mock scan'),
+      h('button', {
+        class: 'switch' + (s.extended ? ' on' : ''),
+        onclick: (ev) => { s.extended = !s.extended; ev.currentTarget.classList.toggle('on'); },
+      }, h('i'), 'Extended board'),
+      h('button', {
+        class: 'switch' + (s.weekend ? ' on' : ''),
+        onclick: (ev) => { s.weekend = !s.weekend; ev.currentTarget.classList.toggle('on'); },
+      }, h('i'), 'Weekend sim'),
+    ));
+    const out = h('div'); el.appendChild(out);
+    if (s.opps) paint();
+
+    function run() {
+      s.opps = OS.client.detect_opportunities(s.extended ? E.extendedMockMarkets() : E.mockMarkets());
+      s.decision = null;
+      paint();
+    }
+    function paint() {
+      out.innerHTML = '';
+      if (!s.opps.length) {
+        out.appendChild(h('div', { class: 'card' }, h('p', { class: 'lede', style: 'margin:0' },
+          'No opportunities above threshold. The detector fails closed on noise \u2014 run the extended board for more pairs.')));
+        return;
+      }
+      s.opps.forEach((o, idx) => {
+        const netW = Math.max(2, (o.estimated_net_apr / o.gross_spread_apr) * 100);
+        const slipW = 10, costW = Math.max(1, (0.02 / o.gross_spread_apr) * 100);
+        const card = h('div', { class: 'card' + (idx === 0 ? ' opp' : '') },
+          h('h3', {}, o.asset + ' \u00b7 ' + o.long_venue + ' / ' + o.short_venue,
+            h('span', { class: 'tag ' + (o.preferred_pairing ? 'gold' : '') },
+              o.preferred_pairing ? 'preferred pairing' : 'rank #' + (idx + 1))),
+          h('div', { class: 'legs' },
+            h('div', { class: 'leg long' }, h('div', { class: 'side' }, 'LONG'),
+              h('div', { class: 'venue' }, cap(o.long_venue)),
+              h('div', { class: 'apr' }, pct(o.long_funding_apr, 2) + ' \u00b7 OI ' + usd(o.long_oi))),
+            h('div', { class: 'vs' }, o.weekend_exposed ? 'WKND\u26A0' : 'VS'),
+            h('div', { class: 'leg short' }, h('div', { class: 'side' }, 'SHORT'),
+              h('div', { class: 'venue' }, cap(o.short_venue)),
+              h('div', { class: 'apr' }, pct(o.short_funding_apr, 2) + ' \u00b7 OI ' + usd(o.short_oi)))),
+          h('div', { class: 'kv' }, h('span', {}, 'Gross spread'), h('b', {}, pct(o.gross_spread_apr))),
+          h('div', { class: 'kv' }, h('span', {}, 'Estimated net'), h('b', { class: 'gold big', style: 'font-size:22px' }, pct(o.estimated_net_apr))),
+          h('div', { class: 'waterfall' },
+            h('i', { class: 'wf-net', style: 'width:' + netW + '%' }),
+            h('i', { class: 'wf-slip', style: 'width:' + slipW + '%' }),
+            h('i', { class: 'wf-cost', style: 'width:' + costW + '%' })),
+          h('div', { class: 'wflegend' },
+            h('span', {}, h('i', { class: 'wf-net' }), 'net capture'),
+            h('span', {}, h('i', { class: 'wf-slip' }), 'slippage 10%'),
+            h('span', {}, h('i', { class: 'wf-cost' }), 'costs 2% APR')),
+          h('div', { class: 'kv' }, h('span', {}, 'Liquidity / risk score'),
+            h('b', {}, o.liquidity_score + ' / ' + o.risk_score)),
+          h('div', { class: 'kv' }, h('span', {}, 'Recommended leverage'),
+            h('b', {}, o.recommended_leverage.toFixed(1) + 'x (governor 2\u20135x)')),
+          idx === 0 ? h('div', { class: 'btnrow', style: 'margin:10px 0 0' },
+            h('button', { class: 'btn', onclick: () => guard(o) }, 'Send to Guardian')) : null,
+        );
+        out.appendChild(card);
+      });
+      if (s.decision) out.prepend(decisionCard(s.decision, s.weekend));
+    }
+    function guard(o) {
+      s.decision = OS.client.guardian.evaluate(o, OS.client.portfolio, { weekend: s.weekend });
+      paint();
+      $('#view').scrollTop = 0;
+    }
+  }
+
+  function decisionCard(d, weekend) {
+    if (d.approved) {
+      const a = d.approved;
+      return h('div', { class: 'card', style: 'border-color:rgba(45,212,167,.5)' },
+        h('h3', {}, 'Guardian decision', h('span', { class: 'tag green' }, 'approved \u00b7 dry-run')),
+        h('div', { class: 'kv' }, h('span', {}, 'Approved notional'), h('b', { class: 'pos' }, usd(a.approved_notional))),
+        h('div', { class: 'kv' }, h('span', {}, 'Leverage'), h('b', {}, a.approved_leverage.toFixed(1) + 'x')),
+        h('div', { class: 'kv' }, h('span', {}, 'Required margin (dual-leg \u00d71.25)'), h('b', {}, usd(a.required_margin))),
+        weekend ? h('div', { class: 'kv' }, h('span', {}, 'Weekend buffer'), h('b', { class: 'gold' }, 'size \u00d70.5 applied')) : null);
+    }
+    return h('div', { class: 'card', style: 'border-color:rgba(255,92,108,.5)' },
+      h('h3', {}, 'Guardian decision', h('span', { class: 'tag red' }, 'rejected')),
+      h('p', { class: 'lede', style: 'margin:0' }, 'Fail closed: ' + d.reasons.join(' \u00b7 ')));
+  }
+
+  /* ---------------------------- app: risk ---------------------------- */
+  function renderRisk(el) {
+    el.append(...header('RiskGuardian \u00b7 fail closed', 'Risk Guardian',
+      'Every gate must pass or the trade dies. Hard leverage caps are frozen constants \u2014 configuration cannot loosen them.'));
+    const L = OS.client.limits, P = OS.client.portfolio;
+
+    el.appendChild(h('div', { class: 'btnrow' },
+      h('button', { class: 'btn', onclick: refCheck }, 'Run reference risk-check'),
+      h('button', {
+        class: 'switch' + (P.kill_switch ? ' on' : ''), onclick: () => toggleKill(),
+      }, h('i'), 'Kill switch'),
+      h('button', { class: 'btn ghost', onclick: resetPortfolio }, 'Reset portfolio'),
+    ));
+    const refOut = h('div'); el.appendChild(refOut);
+
+    el.appendChild(h('div', { class: 'card' }, h('h3', {}, 'Drawdown simulator',
+      h('span', { class: 'tag' }, 'kill at \u221210%')),
+      h('input', {
+        type: 'range', min: '0', max: '15', step: '0.5', value: String(P.drawdown_pct * 100),
+        style: 'width:100%;accent-color:#FFB01F;min-height:34px',
+        oninput: (ev) => { P.drawdown_pct = Number(ev.target.value) / 100; $('#ddVal').textContent = pct(P.drawdown_pct); },
+      }),
+      h('div', { class: 'kv' }, h('span', {}, 'Simulated drawdown'), h('b', { id: 'ddVal' }, pct(P.drawdown_pct)))));
+
+    const limitRows = [
+      ['Leverage window', L.min_leverage + 'x \u2013 ' + L.max_leverage + 'x (frozen)'],
+      ['Max position notional', usd(L.max_position_notional)],
+      ['Max total notional', usd(L.max_total_notional)],
+      ['Max per-venue exposure', usd(L.max_venue_exposure)],
+      ['Net APR floor', pct(L.min_net_apr, 0)],
+      ['Liquidity floor / risk ceiling', L.min_liquidity_score + ' / ' + L.max_risk_score],
+      ['Max drawdown (kill)', pct(L.max_drawdown_pct, 0)],
+      ['Weekend size multiplier', '\u00d7' + L.weekend_size_multiplier],
+      ['Dual-leg margin buffer', '\u00d7' + L.dual_leg_margin_buffer + ' on both legs'],
+      ['OI concentration cap', pct(L.max_oi_fraction, 0) + ' of thinner leg'],
+      ['Oracle gate', L.require_fresh_oracle ? 'fresh required on both legs' : 'off'],
+    ];
+    el.appendChild(h('div', { class: 'card' }, h('h3', {}, 'Active limits (research-aligned)'),
+      limitRows.map(([k, v]) => h('div', { class: 'kv' }, h('span', {}, k), h('b', {}, v)))));
+
+    const log = h('div', { class: 'log' });
+    paintLog();
+    el.appendChild(h('div', { class: 'card' }, h('h3', {}, 'Decision audit log',
+      h('span', { class: 'tag' }, OS.client.guardian.decisions.length + ' recorded')), log));
+
+    function paintLog() {
+      log.innerHTML = '';
+      const ds = OS.client.guardian.decisions.slice().reverse();
+      if (!ds.length) { log.appendChild(h('div', { class: 'row' }, h('span', { class: 'what' }, 'No decisions yet \u2014 run a check, a scan hand-off, or a workflow.'))); return; }
+      for (const d of ds) log.appendChild(h('div', { class: 'row' },
+        h('span', { class: 'who' }, d.approved ? 'APPROVED' : 'REJECTED'),
+        h('span', { class: 'what' }, d.asset + ' ' + d.pair + ' \u2014 ',
+          d.approved ? h('b', {}, usd(d.notional) + ' @ ' + d.leverage.toFixed(1) + 'x')
+            : h('b', {}, d.reasons.join(', ')))));
+    }
+    function refCheck() {
+      const line = OS.cli.run('risk-check');
+      const d = OS.client.guardian.decisions[OS.client.guardian.decisions.length - 1];
+      refOut.innerHTML = '';
+      refOut.appendChild(h('div', { class: 'card' },
+        h('h3', {}, 'Reference check (cli.py risk_check)',
+          h('span', { class: 'tag ' + (line.startsWith('Approved') ? 'green' : 'red') }, line.startsWith('Approved') ? 'pass' : 'reject')),
+        h('pre', { class: 'doc', style: 'margin:0' }, h('code', {}, '$ edge-os risk-check\n' + line))));
+      refOut.appendChild(decisionCard({ approved: d.approved ? {
+        approved_notional: d.notional, approved_leverage: d.leverage,
+        required_margin: Math.ceil(d.notional * (2 / d.leverage) * OS.client.limits.dual_leg_margin_buffer) } : null,
+        reasons: d.reasons }, false));
+      paintLog();
+    }
+    function resetPortfolio() {
+      const fresh = E.PortfolioState();
+      Object.assign(P, fresh, { venue_notional: {}, open_positions: [] });
+      P.kill_switch = false; syncRail(); rerender();
+    }
+  }
+
+  /* ---------------------------- app: flow ----------------------------- */
+  function renderFlow(el) {
+    el.append(...header('run_funding_arb_workflow', 'Multi-agent workflow',
+      'Discover \u2192 detect \u2192 guard \u2192 dry-run execute \u2192 report. Beliefs from the sealed lab are consulted only when you opt in.'));
+    const f = OS.flow;
+    el.appendChild(h('div', { class: 'btnrow' },
+      h('button', { class: 'btn', onclick: run, id: 'flowRun' }, 'Run workflow'),
+      h('button', {
+        class: 'switch' + (f.consult ? ' on' : ''),
+        onclick: (ev) => { f.consult = !f.consult; ev.currentTarget.classList.toggle('on'); },
+      }, h('i'), 'consult_beliefs'),
+      h('button', {
+        class: 'switch' + (f.weekend ? ' on' : ''),
+        onclick: (ev) => { f.weekend = !f.weekend; ev.currentTarget.classList.toggle('on'); },
+      }, h('i'), 'Weekend'),
+    ));
+    const out = h('div'); el.appendChild(out);
+    if (f.result) paint(f.result, true);
+
+    function run() {
+      f.result = OS.client.run_workflow({ consult_beliefs: f.consult, weekend: f.weekend });
+      paint(f.result, false);
+      syncRail();
+    }
+    function paint(r, instant) {
+      out.innerHTML = '';
+      const log = h('div', { class: 'log' });
+      out.appendChild(h('div', { class: 'card' }, h('h3', {}, 'Agent chain',
+        h('span', { class: 'tag ' + (r.decision && r.decision.approved ? 'green' : 'red') },
+          r.decision && r.decision.approved ? 'filled \u00b7 dry-run' : 'no trade')), log));
+      r.steps.forEach((s, i) => {
+        const row = h('div', { class: 'row' + (instant || reduced ? '' : ' flowstep') },
+          h('span', { class: 'who' + (s.agent === 'BeliefAgent' ? ' v' : '') }, s.agent),
+          h('span', { class: 'what' }, h('b', {}, s.action), ' \u2014 ' + s.detail));
+        if (!instant && !reduced) row.style.animationDelay = (i * 0.28) + 's';
+        log.appendChild(row);
+      });
+      if (r.execution) {
+        const x = r.execution;
+        out.appendChild(h('div', { class: 'card' }, h('h3', {}, 'Dry-run fill',
+          h('span', { class: 'tag green' }, x.status)),
+          x.legs.map((l) => h('div', { class: 'kv' },
+            h('span', {}, l.side.toUpperCase() + ' ' + cap(l.venue)),
+            h('b', { class: l.side === 'long' ? 'pos' : 'neg' },
+              l.qty.toFixed(3) + ' @ ' + l.price.toFixed(2)))),
+          h('div', { class: 'kv' }, h('span', {}, 'Est. funding capture'),
+            h('b', { class: 'gold' }, '$' + x.est_daily_funding_usd + ' / day')),
+          h('div', { class: 'kv' }, h('span', {}, 'Margin posted'), h('b', {}, usd(x.required_margin)))));
+      }
+    }
+  }
+
+  /* ----------------------------- app: lab ----------------------------- */
+  function renderLab(el) {
+    el.append(...header('AQuA-inspired \u00b7 arXiv:2608.12841', 'Sealed research',
+      'Research agents run against fixed seeded splits. They write validated beliefs \u2014 evidence, never authority. Nothing here can touch capital, limits, or execution.'));
+    const store = OS.client.belief_store;
+    el.appendChild(h('div', { class: 'card sealed' },
+      h('h3', {}, 'Sandbox', h('span', { class: 'tag violet' }, 'sealed')),
+      h('div', { class: 'kv' }, h('span', {}, 'Evaluator seed'), h('b', {}, '42 (frozen)')),
+      h('div', { class: 'splitbar' }, h('i', { class: 'tr', style: 'width:66.6%' }), h('i', { class: 'ho', style: 'width:33.4%' })),
+      h('div', { class: 'wflegend' },
+        h('span', {}, h('i', { class: 'tr', style: 'background:rgba(157,140,255,.45)' }), 'train 160 bars'),
+        h('span', {}, h('i', { class: 'ho', style: 'background:rgba(157,140,255,.15)' }), 'holdout 80 bars')),
+      h('div', { class: 'btnrow', style: 'margin:12px 0 0' },
+        h('button', { class: 'btn violet', onclick: run }, 'Run research loop'))));
+    const out = h('div'); el.appendChild(out);
+    paintBeliefs();
+    if (OS.lab.result) paintRun(OS.lab.result);
+
+    function run() { OS.lab.result = OS.client.run_research(8); paintRun(OS.lab.result); paintBeliefs(); }
+    function paintRun(r) {
+      let ex = $('#labRun'); if (ex) ex.remove();
+      const tbl = h('table', {},
+        h('thead', {}, h('tr', {}, h('th', {}, 'Entry threshold'), h('th', { class: 'num' }, 'Train'), h('th', { class: 'num' }, 'Holdout'))),
+        h('tbody', {}, r.log.map((l) => h('tr', {},
+          h('td', {}, l.candidate.toFixed(3) + ' APR'),
+          h('td', { class: 'num' }, String(l.train)),
+          h('td', { class: 'num ' + (l.holdout >= r.baseline ? 'pos' : 'neg') }, String(l.holdout))))));
+      out.prepend(h('div', { class: 'card sealed', id: 'labRun' },
+        h('h3', {}, 'Loop result', h('span', { class: 'tag violet' }, 'baseline (holdout) ' + r.baseline)),
+        tbl,
+        h('p', { class: 'lede', style: 'margin:10px 0 0' }, r.belief
+          ? 'Validated belief written: ' + r.belief.id + '. It stays inert until a workflow opts in with consult_beliefs.'
+          : 'No candidate beat the sealed baseline \u2014 nothing was written.')));
+    }
+    function paintBeliefs() {
+      let ex = $('#beliefCard'); if (ex) ex.remove();
+      const bs = store.list();
+      out.appendChild(h('div', { class: 'card', id: 'beliefCard' },
+        h('h3', {}, 'BeliefStore', h('span', { class: 'tag violet' }, bs.length + ' record(s)')),
+        bs.length ? bs.map((b) => h('div', { class: 'belief' },
+          h('div', { class: 'id' }, b.id + ' \u00b7 ' + (b.validated ? 'VALIDATED' : 'unvalidated') + ' \u00b7 confidence ' + b.confidence),
+          h('div', {}, b.hypothesis),
+          h('div', { class: 'apr', style: 'color:var(--muted);font-size:11px;margin-top:4px' },
+            b.param + ' = ' + b.value + ' \u00b7 train ' + b.train_score + ' \u00b7 holdout ' + b.holdout_score)))
+          : h('p', { class: 'lede', style: 'margin:0' }, 'Empty. Run the loop to produce evidence.'),
+        h('div', { class: 'btnrow', style: 'margin:10px 0 0' },
+          h('button', {
+            class: 'btn ghost', onclick: () => { OS.flow.consult = true; go('flow'); },
+          }, 'Consult in a workflow \u2192'))));
+    }
+  }
+
+  /* ---------------------------- app: term ----------------------------- */
+  function renderTerm(el) {
+    el.append(...header('python -m edge_os.cli', 'Terminal',
+      'The cli.py surface, live. Same kernel, same portfolio, same guardian as every other app on this desk.'));
+    const out = h('div', { id: 'termOut', role: 'log', 'aria-live': 'polite' });
+    const line = (txt, cls) => {
+      const d = h('div', { class: cls || '' }); d.textContent = txt; out.appendChild(d);
+      out.scrollTop = out.scrollHeight;
+    };
+    line('Edge OS 0.1.0 \u2014 type "help" for commands.');
+    const input = h('input', {
+      id: 'termIn', type: 'text', autocomplete: 'off', autocapitalize: 'off',
+      spellcheck: 'false', placeholder: 'edge-os \u203a', 'aria-label': 'terminal input',
+      enterkeyhint: 'send',
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter') exec();
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); hist(1); }
+      else if (ev.key === 'ArrowDown') { ev.preventDefault(); hist(-1); }
+    });
+    const chips = ['status', 'scan', 'scan --extended', 'risk-check', 'workflow --consult-beliefs',
+      'research run 8', 'beliefs', 'limits', 'mcp tools', 'verify', 'kill on', 'kill off', 'help'];
+    el.appendChild(out);
+    el.appendChild(h('div', { class: 'termbar' }, input,
+      h('button', { class: 'btn', onclick: exec, 'aria-label': 'run command' }, 'Run')));
+    el.appendChild(h('div', { class: 'chips' }, chips.map((c) =>
+      h('button', { onclick: () => { input.value = c; exec(); } }, c))));
+
+    function hist(dir) {
+      if (!OS.termHist.length) return;
+      OS.termIdx = E.clamp(OS.termIdx + dir, -1, OS.termHist.length - 1);
+      input.value = OS.termIdx === -1 ? '' : OS.termHist[OS.termHist.length - 1 - OS.termIdx];
+    }
+    function exec() {
+      const cmd = input.value.trim(); if (!cmd) return;
+      OS.termHist.push(cmd); OS.termIdx = -1;
+      line('edge-os \u203a ' + cmd, 'in');
+      if (cmd === 'clear') { out.innerHTML = ''; input.value = ''; return; }
+      if (cmd === 'verify') {
+        const r = globalThis.runVerifySuite(E);
+        for (const g of ['kernel', 'models', 'detector', 'risk', 'exec', 'workflow', 'research', 'sdk', 'mcp', 'cli', 'wiki']) {
+          const rs = r.results.filter((x) => x.group === g);
+          line('  ' + g.padEnd(10) + rs.filter((x) => x.pass).length + '/' + rs.length + ' pass');
+        }
+        line(r.failed === 0 ? 'VERIFY OK \u2014 ' + r.passed + '/' + r.total + ' checks pass'
+          : 'VERIFY FAILED \u2014 ' + r.failed + ' failing', r.failed === 0 ? '' : 'err');
+      } else {
+        const res = OS.cli.run(cmd);
+        line(res, res.startsWith('ERROR') || res === 'Rejected' ? 'err' : '');
+      }
+      syncRail();
+      input.value = '';
+    }
+  }
+
+  /* ----------------------------- app: mcp ----------------------------- */
+  function renderMcp(el) {
+    el.append(...header('python -m edge_os.mcp.server', 'MCP server',
+      'Six tools over JSON-RPC 2.0, including the edge_research_* pair the agent contract requires. Tap a tool to call it.'));
+    const tools = OS.mcp.list().result.tools;
+    const out = h('div'); const list = h('div', { class: 'card' },
+      h('h3', {}, 'tools/list', h('span', { class: 'tag gold' }, tools.length + ' tools')));
+    tools.forEach((t) => list.appendChild(h('div', {
+      class: 'kv', style: 'cursor:pointer', role: 'button', tabindex: '0',
+      onclick: () => call(t.name),
+      onkeydown: (ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); call(t.name); } },
+    },
+      h('span', {}, h('b', { class: 'gold' }, t.name), h('br'),
+        h('span', { style: 'font-family:var(--sans);font-size:12px' }, t.description)),
+      h('b', { style: 'color:var(--faint)' }, '\u25B8'))));
+    el.appendChild(list); el.appendChild(out);
+    function call(name) {
+      const args = name === 'edge_scan' ? { extended: true } : {};
+      const req = { jsonrpc: '2.0', id: Date.now() % 1000, method: 'tools/call', params: { name, arguments: args } };
+      const res = OS.mcp.call(name, args);
+      out.innerHTML = '';
+      out.appendChild(h('div', { class: 'card' }, h('h3', {}, name,
+        h('span', { class: 'tag ' + (res.error ? 'red' : 'green') }, res.error ? 'error' : 'result')),
+        h('p', { class: 'eyebrow', style: 'margin:0 0 4px' }, 'request'),
+        h('pre', { class: 'doc', style: 'margin:0 0 10px' }, h('code', {}, JSON.stringify(req, null, 2))),
+        h('p', { class: 'eyebrow', style: 'margin:0 0 4px' }, 'response'),
+        h('pre', { class: 'doc', style: 'margin:0;max-height:300px;overflow:auto' },
+          h('code', {}, JSON.stringify(res, null, 2)))));
+      syncRail();
+      out.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'start' });
+    }
+  }
+
+  /* ---------------------------- app: docs ----------------------------- */
+  function renderDocs(el) {
+    el.append(...header('README \u00b7 AGENTS \u00b7 docs/ \u00b7 skills/', 'Documents',
+      'The repo\u2019s own contract, carried into the build. Verbatim files are marked; anything GitHub would not let the build read is badged as reconstructed.'));
+    const tabs = h('div', { class: 'tabs' });
+    const body = h('div');
+    for (const d of globalThis.EDGE_DOCS) tabs.appendChild(h('button', {
+      class: d.id === OS.docTab ? 'act' : '',
+      onclick: (ev) => { OS.docTab = d.id; [...tabs.children].forEach((b) => b.classList.remove('act')); ev.currentTarget.classList.add('act'); paint(); },
+    }, d.label));
+    el.appendChild(tabs); el.appendChild(body); paint();
+    function paint() {
+      const d = globalThis.EDGE_DOCS.find((x) => x.id === OS.docTab);
+      body.innerHTML = '';
+      body.appendChild(h('div', { class: 'prov' + (d.provenance === 'reconstructed' ? ' re' : '') },
+        d.provenance === 'verbatim'
+          ? '\u2713 VERBATIM \u2014 retrieved 1:1 from ANAMIZED/edge-os (Apache-2.0)'
+          : '\u26A0 RECONSTRUCTED \u2014 written to the repo\u2019s stated contract; original file not retrievable by automated access'));
+      body.appendChild(h('div', { class: 'card' }, h('div', { class: 'doc', html: d.html })));
+    }
+  }
+
+  /* --------------------------- app: verify ---------------------------- */
+  function renderVerify(el) {
+    el.append(...header('scripts/verify.sh contract', 'Verification',
+      'The same 70-check suite that gated this build in Node.js, re-run live against the kernel on your device. Every AGENTS.md surface is covered.'));
+    const btn = h('button', { class: 'btn', onclick: run }, 'Run verification');
+    el.appendChild(h('div', { class: 'btnrow' }, btn));
+    const sum = h('div', { id: 'vsummary' },
+      h('span', { id: 'vbadge' }, '\u2014'),
+      h('div', { class: 'meter' }, h('i', { id: 'vmeter' })),
+      h('span', { class: 'tag', id: 'vcount' }, '0 / 70'));
+    el.appendChild(h('div', { class: 'card' }, sum, h('div', { id: 'vout' })));
+    if (OS.verify.results) paintAll(OS.verify.results);
+
+    function run() {
+      if (OS.verify.running) return;
+      OS.verify.running = true; btn.setAttribute('disabled', '');
+      const checks = globalThis.buildVerifySuite(E);
+      const results = [];
+      const vout = $('#vout'); vout.innerHTML = '';
+      let i = 0;
+      const groups = {};
+      (function step() {
+        const slice = checks.slice(i, i + 4);
+        for (const c of slice) {
+          let pass = false, err = null;
+          try { pass = c.fn() === true; } catch (e) { err = String(e && e.message || e); }
+          results.push({ group: c.group, name: c.name, pass, err });
+          if (!groups[c.group]) {
+            groups[c.group] = h('div', { class: 'vgroup' }, h('h4', {}, c.group));
+            vout.appendChild(groups[c.group]);
+          }
+          groups[c.group].appendChild(h('div', { class: 'vrow ' + (pass ? 'pass' : 'fail') },
+            h('span', { class: 'mark' }, pass ? '\u2713' : '\u2717'),
+            h('span', { class: 'nm' }, c.name + (err ? ' \u2014 ' + err : ''))));
+        }
+        i += slice.length;
+        const passed = results.filter((r) => r.pass).length;
+        $('#vmeter').style.width = (i / checks.length * 100) + '%';
+        $('#vcount').textContent = passed + ' / ' + checks.length;
+        if (i < checks.length) setTimeout(step, reduced ? 0 : 60);
+        else {
+          const failed = results.length - passed;
+          const badge = $('#vbadge');
+          badge.textContent = failed === 0 ? 'PASS' : 'FAIL';
+          badge.className = failed === 0 ? 'pass' : 'fail';
+          OS.verify.results = results; OS.verify.running = false;
+          btn.removeAttribute('disabled');
+        }
+      })();
+    }
+    function paintAll(results) {
+      const vout = $('#vout');
+      const groups = {};
+      for (const r of results) {
+        if (!groups[r.group]) { groups[r.group] = h('div', { class: 'vgroup' }, h('h4', {}, r.group)); vout.appendChild(groups[r.group]); }
+        groups[r.group].appendChild(h('div', { class: 'vrow ' + (r.pass ? 'pass' : 'fail') },
+          h('span', { class: 'mark' }, r.pass ? '\u2713' : '\u2717'), h('span', { class: 'nm' }, r.name)));
+      }
+      const passed = results.filter((r) => r.pass).length;
+      $('#vmeter').style.width = '100%';
+      $('#vcount').textContent = passed + ' / ' + results.length;
+      const badge = $('#vbadge');
+      badge.textContent = passed === results.length ? 'PASS' : 'FAIL';
+      badge.className = passed === results.length ? 'pass' : 'fail';
+    }
+  }
+
+  /* ----------------------- app: knowledge wiki ------------------------ */
+  function renderWiki(el) {
+    const W = globalThis.KnowledgeWiki;
+    el.append(...header('obsidian-style · self-writing', 'Knowledge constellation',
+      'The system\u2019s own contract as a 3D graph. It accretes on its own \u2014 validated beliefs and guardian rulings become stars \u2014 but it only reads state, never writes it (hard rule 7). Drag to orbit, pinch or wheel to zoom, tap a star.'));
+
+    if (!OS.wikiGraph) OS.wikiGraph = W.buildKnowledgeGraph(OS.client, { seed: 7 });
+    const g = OS.wikiGraph;
+    let bornTick = OS._wikiTick || 0;
+    g.refresh(OS.client, bornTick);
+
+    if (!OS.wikiHidden) OS.wikiHidden = new Set();
+    const hidden = OS.wikiHidden;
+    const view = { theta: 0.72, phi: 0.26, zoom: 1, cx: 0, cy: 0 };
+    let selected = null;
+
+    const chipRow = h('div', { class: 'wchips' });
+    for (const t of ['surface', 'doc', 'rule', 'venue', 'agent', 'belief', 'decision']) {
+      chipRow.appendChild(h('button', {
+        class: hidden.has(t) ? '' : 'on',
+        onclick: (ev) => {
+          hidden.has(t) ? hidden.delete(t) : hidden.add(t);
+          ev.currentTarget.classList.toggle('on');
+          if (selected && hidden.has(selected.type)) { selected = null; paintCard(null); }
+          draw();
+        },
+      }, W.TYPES[t].label));
+    }
+    el.appendChild(chipRow);
+
+    const cv = h('canvas', { class: 'wikicv', 'aria-label': 'knowledge graph, drag to rotate' });
+    const countTag = h('span', { class: 'tag gold', id: 'wikiCount' }, '');
+    el.appendChild(h('div', { class: 'card' },
+      h('h3', {}, 'Constellation', countTag), cv,
+      h('div', { class: 'legend' }, ['core', 'surface', 'doc', 'rule', 'venue', 'agent', 'belief', 'decision'].map((t) =>
+        h('span', {}, h('b', { style: 'background:' + W.TYPES[t].color }), W.TYPES[t].label))),
+      h('div', { class: 'btnrow', style: 'margin:12px 0 0' },
+        h('button', { class: 'btn ghost', onclick: () => { view.zoom = E.clamp(view.zoom * 1.22, 0.45, 2.6); draw(); }, 'aria-label': 'zoom in' }, 'Zoom +'),
+        h('button', { class: 'btn ghost', onclick: () => { view.zoom = E.clamp(view.zoom / 1.22, 0.45, 2.6); draw(); }, 'aria-label': 'zoom out' }, 'Zoom \u2212'),
+        h('button', { class: 'btn ghost', onclick: () => { view.theta = 0.72; view.phi = 0.26; view.zoom = 1; selected = null; paintCard(null); draw(); } }, 'Recenter'))));
+
+    const cardHost = h('div'); el.appendChild(cardHost);
+    el.appendChild(h('p', { class: 'footnote' },
+      'Autonomy here means growth, not authority: run the Lab or the Guardian and new stars appear; nothing in this graph can touch capital, limits, or execution.'));
+    paintCard(null);
+    updateCount();
+
+    /* ------ interaction ------ */
+    const ptrs = new Map();
+    let dragging = false, moved = 0, pinch0 = 0, zoom0 = 1;
+    cv.addEventListener('pointerdown', (ev) => {
+      ptrs.set(ev.pointerId, pt(ev));
+      if (cv.setPointerCapture) try { cv.setPointerCapture(ev.pointerId); } catch (e) {}
+      if (ptrs.size === 1) { dragging = true; moved = 0; }
+      if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = view.zoom; }
+    });
+    cv.addEventListener('pointermove', (ev) => {
+      if (!ptrs.has(ev.pointerId)) return;
+      const prev = ptrs.get(ev.pointerId), cur = pt(ev);
+      ptrs.set(ev.pointerId, cur);
+      if (ptrs.size === 2) {
+        const [a, b] = [...ptrs.values()];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (pinch0 > 0) { view.zoom = E.clamp(zoom0 * (d / pinch0), 0.45, 2.6); draw(); }
+        return;
+      }
+      if (!dragging) return;
+      const dx = cur.x - prev.x, dy = cur.y - prev.y;
+      moved += Math.abs(dx) + Math.abs(dy);
+      view.theta += dx * 0.006;
+      view.phi = E.clamp(view.phi + dy * 0.005, -1.25, 1.25);
+      draw();
+    });
+    const up = (ev) => {
+      if (ptrs.size === 1 && moved < 7) {
+        const p = pt(ev);
+        const hit = W.pick(g, viewNow(), p.x, p.y, hidden);
+        selected = hit || null;
+        paintCard(selected); draw();
+      }
+      ptrs.delete(ev.pointerId);
+      if (ptrs.size < 2) pinch0 = 0;
+      if (ptrs.size === 0) dragging = false;
+    };
+    cv.addEventListener('pointerup', up);
+    cv.addEventListener('pointercancel', (ev) => { ptrs.delete(ev.pointerId); if (!ptrs.size) dragging = false; });
+    cv.addEventListener('wheel', (ev) => {
+      ev.preventDefault();
+      view.zoom = E.clamp(view.zoom * (1 - ev.deltaY * 0.0012), 0.45, 2.6); draw();
+    }, { passive: false });
+    function pt(ev) {
+      const r = cv.getBoundingClientRect();
+      return { x: ev.clientX - r.left, y: ev.clientY - r.top };
+    }
+    function viewNow() { return view; }
+
+    /* ------ selection card ------ */
+    function paintCard(n) {
+      cardHost.innerHTML = '';
+      if (!n) {
+        cardHost.appendChild(h('div', { class: 'card nodecard' },
+          h('h3', {}, 'Star detail', h('span', { class: 'tag' }, 'tap a node')),
+          h('p', { class: 'lede', style: 'margin:0' },
+            'Gold links are the research-preferred pairings. Violet dashed links carry no authority \u2014 they are the R7 opt-in path.')));
+        return;
+      }
+      const nb = [...g.neighbors(n.id)].map((id) => g.byId[id]).filter(Boolean);
+      cardHost.appendChild(h('div', { class: 'card nodecard' },
+        h('h3', {}, n.label, h('span', { class: 'tag', style: 'border-color:' + n.color + '66;color:' + n.color }, W.TYPES[n.type].label)),
+        h('p', { class: 'lede', style: 'margin:0' }, n.blurb),
+        n.doc ? h('div', { class: 'btnrow', style: 'margin:10px 0 0' },
+          h('button', { class: 'btn', onclick: () => { OS.docTab = n.doc; go('docs'); } }, 'Open in Docs')) : null,
+        nb.length ? h('div', { class: 'nb' }, nb.slice(0, 10).map((m) =>
+          h('button', { onclick: () => { selected = m; paintCard(m); draw(); } }, m.label))) : null));
+    }
+    function updateCount() { countTag.textContent = g.nodes.length + ' nodes \u00b7 ' + g.edges.length + ' links'; }
+
+    /* ------ renderer ------ */
+    let lastW = 0;
+    function draw() {
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      const w = cv.clientWidth || 320, hh = cv.clientHeight || 340;
+      if (w !== lastW || cv.width !== w * dpr) { cv.width = w * dpr; cv.height = hh * dpr; lastW = w; }
+      const ctx = cv.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, hh);
+      view.cx = w / 2; view.cy = hh / 2;
+      const selN = selected, nbs = selN ? g.neighbors(selN.id) : null;
+      const proj = new Map();
+      for (const n of g.nodes) if (!hidden.has(n.type)) proj.set(n.id, W.project(n, view));
+
+      for (const e of g.edges) {
+        const pa = proj.get(e.a), pb = proj.get(e.b);
+        if (!pa || !pb) continue;
+        const dim = selN && !(e.a === selN.id || e.b === selN.id);
+        let alpha = 0.16 + 0.1 * Math.min(pa.s, pb.s) / view.zoom;
+        if (dim) alpha *= 0.3;
+        ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y);
+        if (e.kind === 'pair') { ctx.strokeStyle = 'rgba(255,176,31,' + Math.min(0.9, alpha * 4) + ')'; ctx.lineWidth = 1.6; }
+        else if (e.kind === 'optin') { ctx.strokeStyle = 'rgba(157,140,255,' + Math.min(0.85, alpha * 3.4) + ')'; ctx.lineWidth = 1.2; ctx.setLineDash([4, 4]); }
+        else if (e.kind === 'chain') { ctx.strokeStyle = 'rgba(127,180,255,' + Math.min(0.7, alpha * 2.4) + ')'; ctx.lineWidth = 1.2; }
+        else { ctx.strokeStyle = 'rgba(199,211,232,' + alpha + ')'; ctx.lineWidth = 1; }
+        ctx.stroke(); ctx.setLineDash([]);
+      }
+
+      const order = g.nodes.filter((n) => proj.has(n.id))
+        .sort((a, b) => proj.get(b.id).depth - proj.get(a.id).depth);
+      ctx.font = '10px ui-monospace, SFMono-Regular, Menlo, monospace';
+      for (const n of order) {
+        const p = proj.get(n.id);
+        const t = E.clamp((p.s / view.zoom - 0.5) / 0.8, 0, 1);
+        let alpha = 0.3 + 0.7 * t;
+        const isSel = selN && n.id === selN.id;
+        const isNb = nbs && nbs.has(n.id);
+        if (selN && !isSel && !isNb) alpha *= 0.35;
+        const r = Math.max(1.6, n.size * p.s * 0.9);
+        if (isSel) {
+          ctx.beginPath(); ctx.arc(p.x, p.y, r + 6, 0, 7);
+          ctx.strokeStyle = n.color; ctx.lineWidth = 1.2; ctx.stroke();
+        }
+        if (bornTick - n.born < 3 && n.born > 0) {
+          ctx.beginPath(); ctx.arc(p.x, p.y, r + 4 + (bornTick - n.born) * 2, 0, 7);
+          ctx.strokeStyle = 'rgba(255,176,31,' + (0.5 - (bornTick - n.born) * 0.15) + ')'; ctx.stroke();
+        }
+        ctx.globalAlpha = alpha;
+        ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 7);
+        ctx.fillStyle = n.color; ctx.fill();
+        ctx.globalAlpha = 1;
+        const showLabel = isSel || isNb || n.type === 'core' || n.type === 'surface';
+        if (showLabel) {
+          ctx.fillStyle = 'rgba(199,211,232,' + Math.max(0.5, alpha) + ')';
+          ctx.fillText(n.label, p.x + r + 4, p.y + 3);
+        }
+      }
+    }
+
+    /* debug hook for the automated smoke harness */
+    cv._wiki = { graph: g, view, projectOf: (n) => W.project(n, view), select: (id) => { selected = g.byId[id] || null; paintCard(selected); draw(); } };
+
+    /* ------ life: autonomous accretion + idle orbit ------ */
+    const iv = setInterval(() => {
+      bornTick++; OS._wikiTick = bornTick;
+      const added = g.refresh(OS.client, bornTick);
+      if (added > 0) { updateCount(); }
+      if (added > 0 || bornTick % 2 === 0) draw();
+    }, 4000);
+    let rafId = 0;
+    function orbit() {
+      if (OS.app !== 'wiki') return;
+      if (!dragging && ptrs.size === 0) { view.theta += 0.0028; draw(); }
+      rafId = requestAnimationFrame(orbit);
+    }
+    if (!reduced && typeof requestAnimationFrame !== 'undefined') rafId = requestAnimationFrame(orbit);
+    OS._cleanup = () => { clearInterval(iv); if (rafId) cancelAnimationFrame(rafId); };
+    draw();
+  }
+
+  /* ---------------------------- live feed ----------------------------- */
+  function tick() {
+    for (const m of OS.feed) {
+      const drift = (OS.rnd() - 0.5) * 0.06;
+      const anchor = 0.85 * m.funding_apr + 0.15 * (m.funding_apr > 1 ? 1.2 : m.funding_apr);
+      m._prev = m.funding_apr;
+      m.funding_apr = Math.max(0.005, anchor + drift);
+      m.funding_rate = m.funding_apr / ((24 / m.funding_interval_hours) * 365);
+      m.mark_price = m.mark_price * (1 + (OS.rnd() - 0.5) * 0.0006);
+    }
+    const hl = OS.feed.find((m) => m.venue === 'hyperliquid' && m.base_asset === 'XAU');
+    const lt = OS.feed.find((m) => m.venue === 'lighter' && m.base_asset === 'XAU');
+    if (hl && lt) {
+      OS.spreadHist.push(Math.max(0, hl.funding_apr - lt.funding_apr));
+      if (OS.spreadHist.length > 90) OS.spreadHist.shift();
+    }
+    if (OS.app === 'home') {
+      const tbl = $('#boardTbl');
+      if (tbl) [...tbl.tBodies[0].rows].forEach((row, i) => {
+        const m = OS.feed[i];
+        const cells = row.cells;
+        cells[3].textContent = m.mark_price >= 100 ? m.mark_price.toFixed(1) : m.mark_price.toFixed(4);
+        const aprCell = cells[4];
+        aprCell.textContent = pct(m.funding_apr, 2);
+        aprCell.classList.remove('tick-up', 'tick-down'); void aprCell.offsetWidth;
+        aprCell.classList.add(m.funding_apr >= m._prev ? 'tick-up' : 'tick-down');
+      });
+      if (OS._drawSpark) OS._drawSpark();
+    }
+  }
+
+  /* ------------------------------- boot ------------------------------- */
+  function boot() {
+    buildShell(); syncRail(); go('home');
+    const bootEl = $('#boot');
+    const lines = [
+      ['EDGE OS', 'brand'],
+      ['kernel v0.1.0 \u00b7 mock \u00b7 offline', ''],
+      ['models ................ <span class="ok">OK</span>', ''],
+      ['FundingSpreadDetector . <span class="ok">OK</span>', ''],
+      ['RiskGuardian .......... <span class="ok">ARMED \u00b7 fail closed</span>', ''],
+      ['leverage governor ..... <span class="warn">2x\u20135x HARD</span>', ''],
+      ['BeliefStore ........... <span class="ok">SEALED</span>', ''],
+      ['MCP \u00b7 SDK \u00b7 CLI ....... <span class="ok">6 tools \u00b7 ready</span>', ''],
+      ['external network ...... <span class="ok">NONE (by design)</span>', ''],
+    ];
+    const post = $('#boot .post');
+    if (reduced) { bootEl.classList.add('done'); startTicker(); return; }
+    let i = 0;
+    (function type() {
+      if (i < lines.length) {
+        const [txt, cls] = lines[i++];
+        post.appendChild(h('div', { class: cls, html: txt }));
+        setTimeout(type, i === 1 ? 420 : 190);
+      } else setTimeout(() => { bootEl.classList.add('done'); startTicker(); }, 520);
+    })();
+    bootEl.addEventListener('click', () => { bootEl.classList.add('done'); startTicker(); }, { once: true });
+  }
+  let tickerOn = false;
+  function startTicker() {
+    if (tickerOn) return; tickerOn = true;
+    tick(); setInterval(tick, 2600);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+</body>
+</html>
