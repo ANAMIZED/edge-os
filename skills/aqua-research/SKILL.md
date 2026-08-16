@@ -1,40 +1,27 @@
 ---
 name: aqua-research
-description: Optional AQuA-style recursive research loop for Edge OS. Offline/paper only. Manager proposes hypotheses about funding differentials, OI imbalances, weekend gaps, oracle lag; specialists convert to constrained expressions; sealed evaluator scores on historical data; validated beliefs written to persistent memory for optional consultation by live FundingScanner and RiskGuardian.
+description: AQuA-style recursive research loop for Edge OS. Offline/paper only. Manager proposes funding/OI/weekend/oracle hypotheses; specialists produce constrained expressions; sealed evaluator validates; beliefs written to BeliefStore for optional live consult.
+version: 0.1.0
+license: Apache-2.0
+tags: [research, self-improvement, aqua, sealed-sandbox, beliefs]
 ---
 
-# AQuA-Style Research Skill (Edge OS)
-
-## Purpose
-Provide bounded recursive self-improvement of detection and ranking logic without touching the sealed live/paper execution path.
-
-Inspired by AQuA (arXiv:2608.12841): manager-mediated multi-agent research, sealed sandbox, evidence retention.
+# AQuA Research Skill (Edge OS)
 
 ## When to use
-- User or orchestrator requests research / hypothesis generation on RWA funding, basis, gaps, oracles.
-- Offline or paper mode only.
-- Never for live capital decisions.
+- Offline or paper mode only
+- Improving detection / ranking logic over time
+- Never coupled to live capital decisions without human gate
 
-## Workflow
-1. **Manager** proposes hypotheses (funding differentials, OI imbalance, weekend gaps, oracle lag).
-2. **Specialists** convert hypotheses into constrained expressions or ranking configs.
-3. **Sealed evaluator** scores candidates on fixed historical funding + mark/index splits (offline mock or recorded data).
-4. **Belief write-back**: validated results → Belief / Evidence Memory store.
-5. Live FundingScanner and RiskGuardian may *optionally* consult the store; default path remains independent and fail-closed.
+## Process
+1. Manager proposes hypotheses (funding diffs, OI imbalance, weekend gaps, oracle lag)
+2. Specialists convert to constrained expressions or ranking configs
+3. SealedEvaluator (fixed splits, immutable metrics) scores on historical funding + mark/index
+4. Validated beliefs → BeliefStore
+5. Live FundingScanner / RiskGuardian may optionally consult BeliefStore
 
-## MCP tools
-- `edge_research_propose`
-- `edge_research_evaluate`
-- `edge_belief_update`
-
-## Hard constraints
-- Offline / paper only.
-- Sealed sandbox: no mutation of live data splits, labels, or evaluators.
-- No ambient authority over capital or risk limits.
-- Asymmetry principle (AQuA + Edge OS): agents act only through constrained interfaces.
-
-## References
-- docs/SYNTHESIS.md, AGENTS.md
-- src/edge_os/research/ (when present)
-- src/edge_os/mcp/server.py
-- arXiv:2608.12841
+## Hard rules
+- Sealed sandbox: agents cannot alter data, labels, or evaluator
+- Fail closed: only validated evidence is retained
+- Isolation: research path is separate from live execution path (AQuA asymmetry principle)
+- Offline/mock preferred for verification
