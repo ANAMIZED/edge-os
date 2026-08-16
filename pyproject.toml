@@ -1,21 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "edge-os"
 version = "0.1.0"
 description = "Autonomous Agentic Operating System for RWA Perpetual Futures Arbitrage"
-authors = [{name = "Edge OS Team"}]
+readme = "README.md"
 requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
 dependencies = [
     "pydantic>=2.0",
-    "asyncio",
-    "ccxt>=4.0",
-    "httpx",
-    "websockets",
-    "python-dotenv",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest", "black", "ruff"]
+dev = ["pytest", "typer", "rich"]
+mcp = ["mcp"]
+cli = ["typer", "rich"]
 
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+[project.scripts]
+edge-os = "edge_os.cli:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
