@@ -18,7 +18,13 @@ else
   red "AGENTS.md missing or incomplete"
 fi
 
-for skill in discovery-distribution funding-arb; do
+if grep -qi "sealed-sandbox\|AQuA\|asymmetric" "$ROOT/AGENTS.md"; then
+  green "AGENTS.md contains AQuA/sealed-sandbox governance"
+else
+  red "AGENTS.md missing AQuA governance language"
+fi
+
+for skill in discovery-distribution funding-arb aqua-research; do
   if [[ -f "$ROOT/skills/$skill/SKILL.md" ]]; then green "skill $skill present"; else red "skill $skill missing"; fi
 done
 
@@ -27,6 +33,12 @@ for f in LICENSE SECURITY.md CONTRIBUTING.md CODE_OF_CONDUCT.md CHANGELOG.md doc
   if [[ -f "$ROOT/$f" ]]; then green "$f present"; else red "$f missing"; fi
 done
 
+if grep -qi "AQuA\|sealed\|belief" "$ROOT/docs/SYNTHESIS.md"; then
+  green "SYNTHESIS.md contains AQuA alignment"
+else
+  red "SYNTHESIS.md missing AQuA language"
+fi
+
 info "Import all surfaces (offline)..."
 if python -c "
 from edge_os.models import Venue, RiskLimits, FundingOpportunity
@@ -34,9 +46,12 @@ from edge_os.risk.guardian import RiskGuardian, PortfolioState
 from edge_os.detection.funding_spread import FundingSpreadDetector
 from edge_os.sdk.client import EdgeOSClient
 from edge_os.workflows.funding_arb import run_funding_arb_workflow
+from edge_os.memory.beliefs import BeliefStore, ValidatedBelief
+from edge_os.research.workflow import run_aqua_research_loop
+from edge_os.research.evaluator import SealedEvaluator
 print('imports ok')
 "; then
-  green "Kernel + SDK + Workflow imports OK"
+  green "Kernel + SDK + Workflow + Memory + Research imports OK"
 else
   red "Import failure"
 fi
@@ -73,6 +88,19 @@ else
   red "Workflow failed"
 fi
 
+info "AQuA Research Loop + BeliefStore smoke..."
+if python -c "
+from edge_os.research.workflow import run_aqua_research_loop
+r = run_aqua_research_loop()
+assert r['status'] == 'completed'
+assert r.get('validated', 0) >= 1 or r.get('proposals', 0) >= 1
+print('aqua research ok')
+"; then
+  green "AQuA Research Loop + BeliefStore passed"
+else
+  red "AQuA Research Loop failed"
+fi
+
 info "CLI import..."
 if python -c "from edge_os.cli import app; print('cli ok')"; then
   green "CLI import OK"
@@ -96,7 +124,7 @@ echo "  FAILED: $FAIL"
 echo "=============================="
 
 if [[ "$FAIL" -eq 0 ]]; then
-  echo "ALL CHECKS PASSED — AGENTS.md, skills, elite files, kernel, SDK, CLI, MCP, workflows."
+  echo "ALL CHECKS PASSED — AGENTS.md, skills, elite files, kernel, SDK, CLI, MCP, workflows, BeliefStore, AQuA Research Loop."
   exit 0
 else
   echo "SOME CHECKS FAILED — inspect output above."

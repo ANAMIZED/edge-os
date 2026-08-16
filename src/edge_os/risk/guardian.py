@@ -2,6 +2,7 @@
 
 Enforces research-derived limits: 2-5x leverage, dual-leg buffers,
 oracle health, weekend gap controls, concentration caps.
+Optionally consults BeliefStore (AQuA-style) via explicit opt-in only.
 """
 from __future__ import annotations
 from typing import Optional, List, Dict, Any
@@ -30,9 +31,16 @@ class PortfolioState(BaseModel):
 class RiskGuardian:
     """Fail-closed risk gate for all Edge OS opportunities."""
 
-    def __init__(self, limits: Optional[RiskLimits] = None):
+    def __init__(
+        self,
+        limits: Optional[RiskLimits] = None,
+        belief_store: Any = None,
+        consult_beliefs: bool = False,
+    ):
         self.limits = limits or RiskLimits()
         self.is_weekend = False
+        self.belief_store = belief_store
+        self.consult_beliefs = bool(consult_beliefs)  # explicit opt-in only
 
     def set_weekend_mode(self, is_weekend: bool) -> None:
         self.is_weekend = is_weekend
@@ -44,6 +52,18 @@ class RiskGuardian:
         available_capital: float,
     ) -> Optional[ApprovedOpportunity]:
         reasons: List[str] = []
+
+        # Optional belief consultation (no ambient authority)
+        if self.consult_beliefs and self.belief_store is not None:
+            try:
+                relevant = self.belief_store.relevant_for_pair(
+                    opp.long_venue, opp.short_venue, opp.asset
+                )
+                for b in relevant:
+                    if getattr(b, "evidence_score", 0) > 0.05:
+                        reasons.append(f"belief:{getattr(b, 'id', 'unknown')}")
+            except Exception:
+                pass  # never let belief path break the guardian
 
         # Hard threshold
         if opp.estimated_net_apr < self.limits.min_net_apr_threshold:
@@ -104,5 +124,4 @@ class RiskGuardian:
     ) -> List[str]:
         """Return list of active kill reasons (empty = healthy)."""
         triggers: List[str] = []
-        # Placeholder for live oracle divergence, drawdown, ADL flags
         return triggers
