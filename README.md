@@ -1,62 +1,45 @@
 # Edge OS
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+
 **Autonomous Agentic Operating System for RWA Perpetual Futures Arbitrage**
 
-Edge OS is a multi-agent system designed to detect, evaluate, size, execute, and manage delta-neutral arbitrage strategies across centralized and decentralized exchanges offering perpetual futures on real-world assets (tokenized equities, commodities, forex, indices, pre-IPO).
+Edge OS continuously monitors, detects, sizes, and (in controlled modes) executes delta-neutral funding-rate, basis, and related strategies across Hyperliquid, Lighter, Binance, Ostium, Bybit, OKX and related venues.
 
-Built on deep research into venues including Binance, Bybit, OKX, Hyperliquid (HIP-3), Lighter, Ostium, Kraken xStocks, and others.
+A senior engineer who has never seen this repository can, using **only** the source code and this `README.md`:
 
-## Core Strategies Supported
-- Cross-venue Funding Rate / Rollover Arbitrage
-- Weekend / Off-hours Basis & Gap Trading
-- Cash-and-Carry (tokenized spot + perp)
-- Price / Oracle Discrepancy Arbitrage
-- Statistical / Relative Value (correlated RWAs)
-- Pre-IPO / New Listing Flow
+1. Install the package
+2. Run an offline mock scan
+3. Verify end-to-end correctness via automated checks
 
-## Key Design Principles (from research)
-- **Monitoring & Automation**: Continuous feeds from venue APIs + aggregators (Loris.tools, Coinglass, FundingView, Perps.com). Track premium vs index, OI imbalance, weekend gaps.
-- **Leverage**: Strict max 2-5x for arb positions to survive gaps/ADL.
-- **Preferred Venue Pairings**:
-  - Lighter (zero-fee) + Hyperliquid / Binance
-  - Ostium (stable real-carry rollover) + high-funding orderbook venues
-  - Kraken xStocks (tokenized anchor) + synthetic perps
-  - Binance (deep liquidity) + secondaries
+No prior context or tribal knowledge required.
 
-## Architecture
+## Quick Start
 
-### Agent Layer
-- **Perception / Data Agents**: Normalize funding rates (1h vs 8h), prices, OI, oracle health across venues.
-- **Opportunity Detection Agents**: FundingSpreadDetector, BasisGapDetector, etc.
-- **RiskGuardian**: Position sizing, leverage limits, oracle anomaly detection (post-Ostium exploit awareness), gap buffers, portfolio correlation.
-- **ExecutionBroker**: Multi-venue adapters (CEX via APIs, DEX via SDKs/web3), dry-run / live modes, simultaneous dual-leg entry.
-- **Orchestrator / Supervisor**: Capital allocation, prioritization, human-in-loop / full-auto modes, kill switches.
-- **Capital Mobility Agent**: Rebalancing USDT/USDC, bridges.
+```bash
+pip install -e .
+bash scripts/verify.sh
+```
 
-### Data & State
-- Real-time + historical funding/premium stores
-- Position and performance tracking
-- Opportunity memory / learning
+## Surfaces
 
-### Safety
-- Hard risk limits from research
-- Paper trading first
-- Progressive capital deployment
-- Audit logging
+| Surface | Entry |
+|---------|-------|
+| Package / Kernel | `from edge_os.models import ...` / RiskGuardian / FundingSpreadDetector |
+| Verify | `bash scripts/verify.sh` |
+| Skills | `skills/*/SKILL.md` |
+| AGENTS.md | Coding-agent contract at repo root |
+| Docs | `docs/DISCOVERY.md`, `docs/SYNTHESIS.md` |
 
-## Tech Stack
-- Python 3.11+
-- asyncio
-- Pydantic for models
-- ccxt / custom venue SDKs (Hyperliquid, Lighter, Ostium, etc.)
-- Redis / Postgres for state
-- FastAPI + dashboard (Streamlit/Gradio)
-- Optional: LangGraph / CrewAI for higher-level agent orchestration
+## Design principles
 
-## Status
-MVP in development: Funding rate scanner + paper trading on priority venues (Lighter, Hyperliquid, Binance).
+1. Fail closed (RiskGuardian, leverage hard caps, dual-leg buffers)
+2. Research-aligned (preferred pairings, 2-5x, oracle gates, weekend buffers)
+3. Offline/mock preferred for verification
+4. Deployable with zero tribal knowledge
+5. Cost and risk are first-class
 
-## Team
-Collaborative design by Grok (lead), Lucas (data/funding scanner), Benjamin (opportunity + risk), Harper (execution).
+## License
 
-**Disclaimer**: Not financial advice. High risk of loss. Oracle, gap, liquidity, and counterparty risks are material. Always start in simulation.
+Apache-2.0
