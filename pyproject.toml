@@ -17,9 +17,12 @@ dependencies = [
 dev = ["pytest", "typer", "rich"]
 mcp = ["mcp"]
 cli = ["typer", "rich"]
+api = ["fastapi", "uvicorn", "httpx"]
 
 [project.scripts]
 edge-os = "edge_os.cli:app"
+edge-os-mcp = "edge_os.mcp.server:main"
+edge-os-api = "edge_os.api.main:run"
 
 [tool.setuptools.packages.find]
 where = ["src"]

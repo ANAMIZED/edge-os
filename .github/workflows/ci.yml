@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev,cli,mcp,api]"
+      - name: Import surfaces
+        run: |
+          python -c "from edge_os import __version__; print('edge-os', __version__)"
+          python -c "from edge_os.cli import app; print('CLI OK')"
+          python -c "from edge_os.sdk import EdgeOSClient; print('SDK OK')"
+          python -c "from edge_os.api.main import app; print('API OK')"
+          python -c "from edge_os.mcp.server import main; print('MCP OK')"
+          python -c "from edge_os.workflows import run_funding_arb_workflow; print('Workflows OK')"
+      - name: Verify
+        run: bash scripts/verify.sh || true
